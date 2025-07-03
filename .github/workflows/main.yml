@@ -34,7 +34,7 @@ jobs:
           API_KEY: ${{ secrets.API_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-        run: python your_script_name.py # ← ここを実際のファイル名に変更
+        run: python main.py # ← ここを実際のファイル名に変更
 
       # 5. 生成されたグラフをリポジトリにコミット＆プッシュ
       - name: Commit and push if changed
