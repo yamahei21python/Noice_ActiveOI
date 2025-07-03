@@ -10,6 +10,11 @@ on:
 jobs:
   build-and-commit:
     runs-on: ubuntu-latest
+    
+    # このブロックを追加して、リポジトリへの書き込み権限を与える
+    permissions:
+      contents: write
+
     steps:
       # 1. リポジトリのコードをチェックアウト
       - name: Checkout repository
@@ -28,13 +33,12 @@ jobs:
           pip install -r requirements.txt
 
       # 4. Pythonスクリプトを実行
-      # GitHub Secretsを環境変数としてスクリプトに渡す
       - name: Run Python script
         env:
           API_KEY: ${{ secrets.API_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-        run: python main.py # ← ここを実際のファイル名に変更
+        run: python main.py
 
       # 5. 生成されたグラフをリポジトリにコミット＆プッシュ
       - name: Commit and push if changed
