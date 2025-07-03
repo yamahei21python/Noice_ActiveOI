@@ -28,7 +28,7 @@ from functools import reduce
 # --- 設定項目 (Configuration) ---
 
 # APIキーとDiscordボットトークン (GitHub Secretsから環境変数として読み込む)
-API_KEY = os.getenv("API_KEY")
+API_KEY = "e217c670-0033-47c4-af1e-d1ff2ea71954"
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
 
