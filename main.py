@@ -27,10 +27,10 @@ from functools import reduce
 
 # --- 設定項目 (Configuration) ---
 
-# APIキーとDiscordボットトークン (GitHub Secretsから環境変数として読み込む)
-API_KEY = "e217c670-0033-47c4-af1e-d1ff2ea71954"
-DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID")
+# APIキーとDiscordボットトークン（注: スクリプト内に直接記述するのは非推奨です。環境変数などの使用を検討してください）
+API_KEY = "e217c670-0033-47c4-af1e-d1ff2ea71954"  # ご自身のCoinalyze APIキーに置き換えてください
+DISCORD_BOT_TOKEN = "MTMzNzY2MjMyMDk5Nzk2MTg2MQ.GGmhGH.-6yJQtCf25q6V7c2lS2xXNx-LsNq36QEJCqzOc"  # ご自身のDiscordボットトークンに置き換えてください
+DISCORD_CHANNEL_ID = "1337663027037601865"  # 通知先のDiscordチャンネルIDに置き換えてください
 
 # Coinalyze APIエンドポイント
 API_URL = "https://api.coinalyze.net/v1/open-interest-history"
