@@ -16,9 +16,9 @@ from functools import reduce
 
 # --- グローバル設定項目 (Global Configuration) ---
 
-API_KEY = "e217c670-0033-47c4-af1e-d1ff2ea71954"  # ご自身のAPIキーに書き換えてください
-DISCORD_BOT_TOKEN = "MTMzNzY2MjMyMDk5Nzk2MTg2MQ.GGmhGH.-6yJQtCf25q6V7c2lS2xXNx-LsNq36QEJCqzOc"  # ご自身のDiscord Bot Tokenに書き換えてください
-DISCORD_CHANNEL_ID = "1337663027037601865"  # 通知したいDiscordチャンネルIDに書き換えてください
+API_KEY = "API_KEY"  # ご自身のAPIキーに書き換えてください
+DISCORD_BOT_TOKEN = "DISCORD_BOT_TOKEN"  # ご自身のDiscord Bot Tokenに書き換えてください
+DISCORD_CHANNEL_ID = "DISCORD_CHANNEL_ID"  # 通知したいDiscordチャンネルIDに書き換えてください
 
 # ★★★ 分析したい通貨のリスト ★★★
 TARGET_COINS = ["BTC", "ETH", "SOL"]
