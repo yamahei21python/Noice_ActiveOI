@@ -2,6 +2,7 @@
 # ファイル名: dashboard.py
 import streamlit as st
 import os
+from PIL import Image # ★★★ ライブラリをインポート ★★★
 
 # --- ページ設定 ---
 st.set_page_config(page_title="OI Analysis Dashboard", layout="wide")
@@ -21,12 +22,10 @@ if st.button('🔄 Refresh All Charts'):
     st.rerun()
 
 # ターゲットの通貨数に合わせてカラムを作成
-# 例: 3通貨なら3カラム
 cols = st.columns(len(TARGET_COINS))
 
 # 各通貨のグラフを、対応するカラムに表示
 for i, coin in enumerate(TARGET_COINS):
-    # i番目のカラム（左から0, 1, 2...）を選択
     with cols[i]:
         # 通貨名のヘッダーを表示
         st.subheader(f"{coin} Analysis")
@@ -36,7 +35,11 @@ for i, coin in enumerate(TARGET_COINS):
 
         # 画像が存在するかチェックして表示
         if os.path.exists(figure_path):
-            st.image(figure_path, caption=f"Latest {coin} OI Analysis", use_container_width=True)
+            # ★★★ 変更箇所 ★★★
+            # PILで画像ファイルを開く
+            image = Image.open(figure_path)
+            # 開いた画像オブジェクトをst.imageに渡す
+            st.image(image, caption=f"Latest {coin} OI Analysis", use_container_width=True)
         else:
             st.warning(f"{coin}のグラフファイルが見つかりません。")
 
