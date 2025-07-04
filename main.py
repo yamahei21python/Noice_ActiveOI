@@ -194,17 +194,17 @@ def setup_and_push_to_github():
         subprocess.run(["git", "checkout", "-B", "main"], check=True)
         subprocess.run(["git", "reset", "--hard", "origin/main"], check=True)
         
-        # --- dataフォルダの削除と再作成 ---
-        print(f"既存のdataフォルダを削除します: {DATA_DIR}")
-        shutil.rmtree(DATA_DIR, ignore_errors=True)
-        os.makedirs(DATA_DIR, exist_ok=True)
-        
         # --- 全通貨の分析とグラフ生成 ---
         for i, coin in enumerate(TARGET_COINS):
             run_analysis_for_coin(coin)
             if i < len(TARGET_COINS) - 1:
                 print(f"API負荷軽減のため30秒待機...")
                 time.sleep(30)
+                
+        # --- dataフォルダの削除と再作成 ---
+        print(f"既存のdataフォルダを削除します: {DATA_DIR}")
+        shutil.rmtree(DATA_DIR, ignore_errors=True)
+        os.makedirs(DATA_DIR, exist_ok=True)
         
         # --- 生成されたファイルをまとめてプッシュ ---
         print("生成されたファイルをGitHubに追加します...")
