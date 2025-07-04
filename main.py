@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-Coinalyze APIから指定した複数の通貨(BTC, ETH, SOL)のOIデータを取得・加工し、
-価格データと組み合わせてグラフを生成、指定した条件でDiscordに通知する統合スクリプト。
-
-このスクリプトはデータベースを使用せず、実行の都度APIから取得したデータのみで処理を行います。
+Coinalyze APIから指定した複数の通貨のOIデータを取得・加工し、
+価格データと組み合わせてグラフを生成、指定した条件でDiscordに通知し、
+生成したグラフをGitHubリポジトリにプッシュする統合スクリプト。
 """
 
 import requests
-import time  # ★★★ 追加 ★★★
+import time
 import pandas as pd
 import datetime
 import os
 import matplotlib.pyplot as plt
 from functools import reduce
+import subprocess # ★★★ Git操作のために追加 ★★★
 
 # --- グローバル設定項目 (Global Configuration) ---
 
-API_KEY = "e217c670-0033-47c4-af1e-d1ff2ea71954"  # ご自身のAPIキーに書き換えてください
-DISCORD_BOT_TOKEN = "MTMzNzY2MjMyMDk5Nzk2MTg2MQ.GGmhGH.-6yJQtCf25q6V7c2lS2xXNx-LsNq36QEJCqzOc"  # ご自身のDiscord Bot Tokenに書き換えてください
-DISCORD_CHANNEL_ID = "1337663027037601865"  # 通知したいDiscordチャンネルIDに書き換えてください
+# ★★★ 環境変数からキーとトークンを読み込むように修正 ★★★
+API_KEY = os.environ.get("API_KEY")
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
+DISCORD_CHANNEL_ID = os.environ.get("DISCORD_CHANNEL_ID")
 
-# ★★★ 分析したい通貨のリスト ★★★
+# 分析したい通貨のリスト
 TARGET_COINS = ["BTC", "ETH", "SOL"]
 
 # Coinalyze APIエンドポイント
@@ -28,6 +29,7 @@ OI_API_URL = "https://api.coinalyze.net/v1/open-interest-history"
 PRICE_API_URL = "https://api.coinalyze.net/v1/ohlcv-history"
 
 # データおよび画像ファイルの保存先ディレクトリ
+# Renderのファイルシステムは一時的なものですが、実行中に読み書きできれば問題ありません
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
@@ -45,7 +47,7 @@ def get_exchange_config(coin: str) -> dict:
     }
 
 
-# --- データ取得・処理関数 ---
+# --- データ取得・処理関数 (変更なし) ---
 
 def build_symbol_string(exchange_config: dict) -> str:
     """APIリクエスト用のシンボル文字列を構築する"""
@@ -58,7 +60,7 @@ def build_symbol_string(exchange_config: dict) -> str:
 
 def fetch_open_interest_data(exchange_config: dict) -> list:
     """Coinalyze APIからOI（Open Interest）の履歴データを取得する。"""
-    if not API_KEY or API_KEY == "YOUR_COINALYZE_API_KEY":
+    if not API_KEY:
         print("エラー: API_KEYが設定されていません。")
         return []
 
@@ -84,7 +86,7 @@ def fetch_open_interest_data(exchange_config: dict) -> list:
 
 def fetch_price_data(price_symbol: str) -> list:
     """Coinalyze APIから価格の履歴データを取得する。"""
-    if not API_KEY or API_KEY == "YOUR_COINALYZE_API_KEY":
+    if not API_KEY:
         return []
     headers = {"api-key": API_KEY}
     params = {
@@ -200,7 +202,7 @@ def calculate_price_std(df: pd.DataFrame) -> pd.DataFrame:
     return result_df.reset_index()
 
 
-# --- グラフ描画 & Discord通知関数 ---
+# --- グラフ描画 & Discord通知関数 (変更なし) ---
 
 def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: list):
     """3つのパネルを持つグラフを生成して保存する。"""
@@ -211,12 +213,10 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: lis
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 8), sharex=True)
     latest_price = df_plot['Bybit_Price_Close'].iloc[-1]
-
     latest_datetime = df_plot['Datetime'].iloc[-1]
     main_title = f"{coin} Open Interest Analysis ({latest_datetime.strftime('%Y-%m-%d %H:%M %Z')})"
     fig.suptitle(main_title, fontsize=16)
 
-    # 1. 価格グラフ
     ax1.set_title(f"Bybit Price: {latest_price:,.2f}", loc='right', fontsize=12, color='darkred')
     if coin in ["BTC", "ETH"]:
         ax1.plot(df_plot['Datetime'], df_plot['Bybit_Price_Close'] / 1000, label='Bybit Price Close (k USD)',
@@ -230,7 +230,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: lis
     ax1.yaxis.tick_right()
     ax1.yaxis.set_label_position('right')
 
-    # 2. Z-scoreグラフ
     ax2.plot(df_plot['Datetime'], df_plot['Merge_STD'], label='Merge_STD', color='orangered')
     ax2.plot(df_plot['Datetime'], df_plot['Bybit_price_STD'], label='Bybit_price_STD', color='aqua')
     ax2.plot(df_plot['Datetime'], df_plot['STD_Active_OI'], label='STD_Active_OI', color='green')
@@ -240,7 +239,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: lis
     ax2.yaxis.set_label_position('right')
     ax2.set_ylabel("Z-Score")
 
-    # 3. Active OI 積み上げグラフ
     active_oi_cols = [f'{name}_Active_OI_5min' for name in exchange_names]
     active_oi_cols_exist = [col for col in active_oi_cols if col in df_plot.columns]
     if active_oi_cols_exist:
@@ -262,8 +260,7 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: lis
 
 def send_discord_message(message: str, image_path: str):
     """Discordにメッセージと画像を送信する。"""
-    if not DISCORD_BOT_TOKEN or DISCORD_BOT_TOKEN == "YOUR_DISCORD_BOT_TOKEN" or \
-            not DISCORD_CHANNEL_ID or DISCORD_CHANNEL_ID == "YOUR_DISCORD_CHANNEL_ID":
+    if not DISCORD_BOT_TOKEN or not DISCORD_CHANNEL_ID:
         print("Discordの通知設定が不完全なため、通知をスキップします。")
         return
 
@@ -282,21 +279,58 @@ def send_discord_message(message: str, image_path: str):
         print(f"画像ファイルが見つかりません: {image_path}")
 
 
-# --- 通貨ごとの分析実行関数 ---
+# --- ★★★ Git操作用の関数を新たに追加 ★★★ ---
+def git_push_image(image_path: str, coin: str):
+    """生成した画像をGitHubにプッシュする"""
+    token = os.environ.get("GITHUB_PAT")
+    if not token:
+        print("環境変数 GITHUB_PAT が設定されていません。")
+        return
+
+    # Gitのユーザー情報を設定
+    subprocess.run(["git", "config", "--global", "user.name", "Render Bot"])
+    subprocess.run(["git", "config", "--global", "user.email", "bot@render.com"])
+
+    # トークンを使ってリモートURLを再設定（リポジトリのURLはご自身のものに合わせてください）
+    repo_url = f"https://{token}@github.com/yamauchiz/Noice_ActiveOI.git"
+    subprocess.run(["git", "remote", "set-url", "origin", repo_url])
+
+    try:
+        print(f"[{coin}] Gitリポジトリに画像を追加します: {image_path}")
+        subprocess.run(["git", "pull", "origin", "main"], check=True)
+        subprocess.run(["git", "add", image_path], check=True)
+        
+        commit_message = f"Update {coin} analysis chart"
+        result = subprocess.run(["git", "commit", "-m", commit_message], capture_output=True, text=True)
+
+        # 変更がない場合はコミットが失敗するので、その場合は正常終了とする
+        if "nothing to commit" in result.stdout or "no changes added to commit" in result.stderr:
+            print(f"[{coin}] 更新する変更はありませんでした。")
+            return
+
+        print(f"[{coin}] GitHubにプッシュします...")
+        subprocess.run(["git", "push", "origin", "main"], check=True)
+        print(f"[{coin}] GitHubへのプッシュが完了しました。")
+
+    except subprocess.CalledProcessError as e:
+        print(f"[{coin}] Git操作中にエラーが発生しました: {e}")
+        print(f"Stdout: {e.stdout.decode() if e.stdout else 'N/A'}")
+        print(f"Stderr: {e.stderr.decode() if e.stderr else 'N/A'}")
+
+
+# --- 通貨ごとの分析実行関数 (Gitプッシュの呼び出しを追加) ---
 
 def run_analysis_for_coin(coin: str):
     """単一の通貨に対して分析から通知までの全プロセスを実行する。"""
     jst = datetime.timezone(datetime.timedelta(hours=9))
     print(f"--- [{coin}] 処理開始: {datetime.datetime.now(jst).strftime('%Y-%m-%d %H:%M:%S %Z')} ---")
 
-    # 0. 通貨ごとの設定を生成
     price_symbol = f"{coin}USDT.6"
     figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
     exchange_config = get_exchange_config(coin)
     exchange_names = list(exchange_config.keys())
     code_to_name_map = {v['code']: k for k, v in exchange_config.items()}
 
-    # 1. APIからOIデータと価格データを取得し、整形
     raw_oi_data = process_oi_api_data(fetch_open_interest_data(exchange_config), code_to_name_map)
     price_data = process_price_data(fetch_price_data(price_symbol))
 
@@ -308,24 +342,16 @@ def run_analysis_for_coin(coin: str):
     raw_data_df['Bybit_Price_Close'] = raw_data_df['Bybit_Price_Close'].interpolate()
     raw_data_df.dropna(subset=['Bybit_Price_Close'], inplace=True)
 
-    # 2. Active OIを計算
     active_oi_data = calculate_active_oi(raw_data_df, exchange_names)
-
-    # 3. Active OIを集計・標準化
     standardized_oi_data = aggregate_and_standardize_oi(active_oi_data)
-
-    # 4. 価格の標準偏差を計算
     price_std_data = calculate_price_std(raw_data_df)
 
-    # 5. 全てのデータを結合
     data_frames_to_merge = [raw_data_df, active_oi_data, standardized_oi_data, price_std_data]
     all_data = reduce(lambda left, right: pd.merge(left, right, on='Datetime', how='inner'), data_frames_to_merge)
 
-    # 6. 最終的な指標を計算
     if 'STD_Active_OI' in all_data.columns and 'Bybit_price_STD' in all_data.columns:
         all_data['Merge_STD'] = all_data['Bybit_price_STD'] + all_data['STD_Active_OI']
 
-    # 7. 最終的なデータクリーンアップ
     all_data.dropna(inplace=True)
     all_data = all_data.reset_index(drop=True)
 
@@ -338,6 +364,12 @@ def run_analysis_for_coin(coin: str):
 
     # 8. グラフを生成
     plot_figure(all_data, figure_path, coin, exchange_names)
+
+    # ★★★ 8.5. 生成した画像をGitHubにプッシュする ★★★
+    if os.path.exists(figure_path):
+        git_push_image(figure_path, coin)
+    else:
+        print(f"[{coin}] グラフファイルが見つからなかったため、Gitプッシュをスキップします。")
 
     # 9. 条件に基づいてDiscordに通知
     latest = all_data.iloc[-1]
@@ -360,16 +392,14 @@ def run_analysis_for_coin(coin: str):
         print(f"[{coin}] Merge_STDが計算できませんでした。")
 
 
-# --- メイン実行部 ---
+# --- メイン実行部 (変更なし) ---
 
 def main():
     """TARGET_COINSリスト内の各通貨について分析を実行する。"""
-    # enumerateを使い、最後のループかどうかを判定できるようにする
     for i, coin in enumerate(TARGET_COINS):
         run_analysis_for_coin(coin)
         print(f"--- [{coin}] 処理完了 ---\n")
 
-        # ★★★ 修正箇所: 最後の通貨の処理後でなければ30秒待機 ★★★
         if i < len(TARGET_COINS) - 1:
             print(f"API負荷軽減のため、次の通貨へ移る前に30秒待機します...")
             time.sleep(30)
