@@ -3,27 +3,41 @@
 import streamlit as st
 import os
 
-# ページのタイトルと設定
+# --- ページ設定 ---
 st.set_page_config(page_title="OI Analysis Dashboard", layout="wide")
-st.title("📈 Coinalyze OI Analysis")
+st.title("📈 Multi-Coin OI Analysis Dashboard")
 
-# 表示する画像のパス
-# 'analysis_script.py' と同じ階層に 'data' フォルダがあることを想定
-FIGURE_PATH = os.path.join('data', 'oi_analysis_figure.png')
+# --- 設定 ---
+# 分析対象の通貨リスト（分析スクリプトと合わせる）
+TARGET_COINS = ["BTC", "ETH", "SOL"]
+# 画像が保存されているディレクトリ
+DATA_DIR = "data"
 
-# 画像が存在するかチェック
-if os.path.exists(FIGURE_PATH):
-    # PILで開くのではなく、画像のパスを直接st.imageに渡します。
-    # これにより、Streamlitがファイルのキャッシュ管理を適切に行い、
-    # 更新された画像が正しく表示されるようになります。
-    st.image(FIGURE_PATH, caption="Latest OI Analysis Chart", use_column_width=True)
+# --- UI表示 ---
 
-    # 更新ボタン
-    if st.button('🔄 Refresh'):
-        # このボタンが押されると、ページが再実行（rerun）され、
-        # st.imageはディスク上のファイルを再度チェックします。
-        st.rerun()
-else:
-    st.warning("グラフファイルが見つかりません。分析スクリプトが実行されるまでお待ちください。")
+# 更新ボタンを一番上に配置
+if st.button('🔄 Refresh All Charts'):
+    # ページを再実行し、ディスク上の最新画像を読み込む
+    st.rerun()
 
-st.info("このグラフはバックグラウンドで5分ごとに更新される可能性があります。「Refresh」ボタンを押すと最新のグラフを読み込みます。")
+# ターゲットの通貨数に合わせてカラムを作成
+# 例: 3通貨なら3カラム
+cols = st.columns(len(TARGET_COINS))
+
+# 各通貨のグラフを、対応するカラムに表示
+for i, coin in enumerate(TARGET_COINS):
+    # i番目のカラム（左から0, 1, 2...）を選択
+    with cols[i]:
+        # 通貨名のヘッダーを表示
+        st.subheader(f"{coin} Analysis")
+
+        # 通貨ごとの画像ファイルパスを動的に生成
+        figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
+
+        # 画像が存在するかチェックして表示
+        if os.path.exists(figure_path):
+            st.image(figure_path, caption=f"Latest {coin} OI Analysis", use_column_width=True)
+        else:
+            st.warning(f"{coin}のグラフファイルが見つかりません。")
+
+st.info("このダッシュボードは、バックグラウンドで実行されている分析スクリプトの結果を表示します。「Refresh」ボタンでいつでも最新のグラフを読み込めます。")
