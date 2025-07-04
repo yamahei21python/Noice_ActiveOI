@@ -36,7 +36,7 @@ for i, coin in enumerate(TARGET_COINS):
 
         # 画像が存在するかチェックして表示
         if os.path.exists(figure_path):
-            st.image(figure_path, caption=f"Latest {coin} OI Analysis", use_column_width=True)
+            st.image(figure_path, caption=f"Latest {coin} OI Analysis", use_container_width=True)
         else:
             st.warning(f"{coin}のグラフファイルが見つかりません。")
 
