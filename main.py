@@ -279,9 +279,8 @@ def send_discord_message(message: str, image_path: str):
         print(f"画像ファイルが見つかりません: {image_path}")
 
 
-# --- ★★★ Git操作用の関数を新たに追加 ★★★ ---
 def git_push_image(image_path: str, coin: str):
-    """生成した画像をGitHubにプッシュする"""
+    """生成した画像をGitHubにプッシュする（Render環境向け修正版）"""
     token = os.environ.get("GITHUB_PAT")
     if not token:
         print("環境変数 GITHUB_PAT が設定されていません。")
@@ -291,15 +290,26 @@ def git_push_image(image_path: str, coin: str):
     subprocess.run(["git", "config", "--global", "user.name", "Render Bot"])
     subprocess.run(["git", "config", "--global", "user.email", "bot@render.com"])
 
-    # トークンを使ってリモートURLを再設定（リポジトリのURLはご自身のものに合わせてください）
+    # トークンを使ってリモートURLを定義
     repo_url = f"https://{token}@github.com/yamauchiz/Noice_ActiveOI.git"
-    subprocess.run(["git", "remote", "set-url", "origin", repo_url])
 
     try:
+        # --- ここからが修正箇所 ---
+        # 既存のoriginを削除（存在しなくてもエラーにならないようにする）
+        subprocess.run(["git", "remote", "remove", "origin"], stderr=subprocess.DEVNULL)
+        # 新しくoriginを追加
+        subprocess.run(["git", "remote", "add", "origin", repo_url], check=True)
+
+        # リモートリポジトリの最新情報を取得
+        subprocess.run(["git", "fetch", "origin"], check=True)
+        # mainブランチに切り替え、リモートの状態に強制的に合わせる（pullより安定）
+        subprocess.run(["git", "checkout", "main"], check=True)
+        subprocess.run(["git", "reset", "--hard", "origin/main"], check=True)
+        # --- ここまでが修正箇所 ---
+
         print(f"[{coin}] Gitリポジトリに画像を追加します: {image_path}")
-        subprocess.run(["git", "pull", "origin", "main"], check=True)
         subprocess.run(["git", "add", image_path], check=True)
-        
+
         commit_message = f"Update {coin} analysis chart"
         result = subprocess.run(["git", "commit", "-m", commit_message], capture_output=True, text=True)
 
@@ -314,8 +324,11 @@ def git_push_image(image_path: str, coin: str):
 
     except subprocess.CalledProcessError as e:
         print(f"[{coin}] Git操作中にエラーが発生しました: {e}")
-        print(f"Stdout: {e.stdout.decode() if e.stdout else 'N/A'}")
-        print(f"Stderr: {e.stderr.decode() if e.stderr else 'N/A'}")
+        # エラー出力をUTF-8でデコードして表示
+        stdout_decoded = e.stdout.decode('utf-8', 'ignore') if e.stdout else 'N/A'
+        stderr_decoded = e.stderr.decode('utf-8', 'ignore') if e.stderr else 'N/A'
+        print(f"Stdout: {stdout_decoded}")
+        print(f"Stderr: {stderr_decoded}")
 
 
 # --- 通貨ごとの分析実行関数 (Gitプッシュの呼び出しを追加) ---
