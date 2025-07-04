@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# ファイル名: dashboard.py
+# ファイル名: app.py
 import streamlit as st
 import os
 from PIL import Image
@@ -29,10 +29,10 @@ for i, coin in enumerate(TARGET_COINS):
             image = Image.open(figure_path)
             st.image(image, caption=f"Latest {coin} OI Analysis", use_container_width=True)
 
-            # ★★★ 追加: 拡大表示ボタンとダイアログ表示 ★★★
             if st.button(f"🔍 {coin}を拡大表示", key=f"zoom_{coin}"):
-                with st.dialog():
-                    st.header(f"{coin} Analysis - 拡大図")
+                # ★★★ 修正箇所 ★★★
+                # st.dialog()に直接タイトルを渡す
+                with st.dialog(f"{coin} Analysis - 拡大図"):
                     st.image(image, use_container_width=True)
         else:
             st.warning(f"{coin}のグラフファイルが見つかりません。")
