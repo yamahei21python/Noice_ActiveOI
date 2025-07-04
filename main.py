@@ -183,7 +183,7 @@ def setup_and_push_to_github():
     # Gitのユーザー情報とリモートURLを設定
     subprocess.run(["git", "config", "--global", "user.name", "Render Bot"])
     subprocess.run(["git", "config", "--global", "user.email", "bot@render.com"])
-    repo_url = f"https://{GITHUB_PAT}@github.com/yamauchiz/Noice_ActiveOI.git"
+    repo_url = f"https://{GITHUB_PAT}@github.com/yamahei21python/Noice_ActiveOI.git"
     
     try:
         # --- リポジトリの準備 ---
