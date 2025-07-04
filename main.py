@@ -167,7 +167,7 @@ def send_discord_message(message: str, image_path: str):
     try:
         with open(image_path, "rb") as f:
             files = {"file": (os.path.basename(image_path), f, "image/png")}
-            response = requests.post(url, headers={"content": message}, data={"content": message}, files=files)
+            response = requests.post(url, headers=headers, data={"content": message}, files=files)
             response.raise_for_status()
             print("Discordへの通知が正常に送信されました。")
     except Exception as e:
