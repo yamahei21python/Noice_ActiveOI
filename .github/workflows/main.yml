@@ -3,6 +3,7 @@ name: Run OI Analysis Script
 on:
   repository_dispatch:
     types: [on-demand-test]
+    
   # 手動実行も可能にする
   workflow_dispatch:
 
