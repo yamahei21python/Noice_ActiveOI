@@ -41,11 +41,17 @@ jobs:
         run: python main.py
 
       # 5. 生成されたグラフをリポジトリにコミット＆プッシュ
-      - name: Commit and push if changed
+      - name: Commit and push updated charts
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add data/oi_analysis_figure.png
-          # ファイルに変更があった場合のみコミット
-          git diff --staged --quiet || git commit -m "Update analysis figure"
+          
+          # ★★★ 修正点1: pushの前にpullを実行してリモートとの競合を防ぐ
+          git pull --rebase
+          
+          # ★★★ 修正点2: dataディレクトリ全体をaddして全てのチャートを対象にする
+          git add data/
+          
+          # ファイルに変更があった場合のみコミットし、メッセージも変更
+          git diff --staged --quiet || git commit -m "Update analysis charts"
           git push
