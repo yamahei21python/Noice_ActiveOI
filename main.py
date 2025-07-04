@@ -225,6 +225,14 @@ def plot_figure(df: pd.DataFrame, save_path: str):
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 8), sharex=True)
     latest_price = df_plot['Bybit_Price_Close'].iloc[-1]
+    
+    # --- 変更点：ここから ---
+    # グラフの最新日時を取得
+    latest_datetime = df_plot['Datetime'].iloc[-1]
+    # グラフ全体のタイトルに日時を設定
+    main_title = f"BTC Open Interest Analysis ({latest_datetime.strftime('%Y-%m-%d %H:%M %Z')})"
+    fig.suptitle(main_title, fontsize=16)
+    # --- 変更点：ここまで ---
 
     # 1. 価格グラフ
     ax1.plot(df_plot['Datetime'], df_plot['Bybit_Price_Close'] / 1000, label='Bybit Price Close (k USD)', color='orangered')
@@ -259,7 +267,9 @@ def plot_figure(df: pd.DataFrame, save_path: str):
     plt.setp(ax3.get_xticklabels(), rotation=30, ha='right')
 
     plt.tight_layout()
-    plt.subplots_adjust(hspace=0.05)
+    # --- 変更点：top=0.94 を追加 ---
+    plt.subplots_adjust(hspace=0.05, top=0.94) 
+    # --- 変更点：ここまで ---
     plt.savefig(save_path)
     plt.close()
     print(f"グラフを '{save_path}' に保存しました。")
