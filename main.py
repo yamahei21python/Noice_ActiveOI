@@ -279,8 +279,9 @@ def send_discord_message(message: str, image_path: str):
         print(f"画像ファイルが見つかりません: {image_path}")
 
 
+# --- ★★★ この関数全体を置き換えてください ★★★ ---
 def git_push_image(image_path: str, coin: str):
-    """生成した画像をGitHubにプッシュする（Render環境向け修正版）"""
+    """生成した画像をGitHubにプッシュする（変更がなくても常に更新する版）"""
     token = os.environ.get("GITHUB_PAT")
     if not token:
         print("環境変数 GITHUB_PAT が設定されていません。")
@@ -291,32 +292,29 @@ def git_push_image(image_path: str, coin: str):
     subprocess.run(["git", "config", "--global", "user.email", "bot@render.com"])
 
     # トークンを使ってリモートURLを定義
-    repo_url = f"https://{token}@github.com/yamahei21python/Noice_ActiveOI.git"
+    repo_url = f"https://{token}@github.com/yamauchiz/Noice_ActiveOI.git"
 
     try:
-        # --- ここからが修正箇所 ---
-        # 既存のoriginを削除（存在しなくてもエラーにならないようにする）
+        # 既存のoriginを削除し、新しく追加する
         subprocess.run(["git", "remote", "remove", "origin"], stderr=subprocess.DEVNULL)
-        # 新しくoriginを追加
         subprocess.run(["git", "remote", "add", "origin", repo_url], check=True)
 
-        # リモートリポジトリの最新情報を取得
+        # リモートリポジトリの最新情報を取得し、ローカルを強制的に合わせる
         subprocess.run(["git", "fetch", "origin"], check=True)
-        # mainブランチに切り替え、リモートの状態に強制的に合わせる（pullより安定）
         subprocess.run(["git", "checkout", "main"], check=True)
         subprocess.run(["git", "reset", "--hard", "origin/main"], check=True)
-        # --- ここまでが修正箇所 ---
 
         print(f"[{coin}] Gitリポジトリに画像を追加します: {image_path}")
         subprocess.run(["git", "add", image_path], check=True)
 
-        commit_message = f"Update {coin} analysis chart"
-        result = subprocess.run(["git", "commit", "-m", commit_message], capture_output=True, text=True)
-
-        # 変更がない場合はコミットが失敗するので、その場合は正常終了とする
-        if "nothing to commit" in result.stdout or "no changes added to commit" in result.stderr:
-            print(f"[{coin}] 更新する変更はありませんでした。")
-            return
+        # ★★★ ここからが修正点 ★★★
+        # --allow-emptyフラグを使い、変更がなくても強制的にコミットを作成する
+        commit_message = f"Update {coin} analysis chart ({datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
+        subprocess.run(
+            ["git", "commit", "--allow-empty", "-m", commit_message], 
+            check=True
+        )
+        # ★★★ ここまでが修正点 ★★★
 
         print(f"[{coin}] GitHubにプッシュします...")
         subprocess.run(["git", "push", "origin", "main"], check=True)
@@ -324,14 +322,10 @@ def git_push_image(image_path: str, coin: str):
 
     except subprocess.CalledProcessError as e:
         print(f"[{coin}] Git操作中にエラーが発生しました: {e}")
-        # エラー出力をUTF-8でデコードして表示
         stdout_decoded = e.stdout.decode('utf-8', 'ignore') if e.stdout else 'N/A'
         stderr_decoded = e.stderr.decode('utf-8', 'ignore') if e.stderr else 'N/A'
         print(f"Stdout: {stdout_decoded}")
         print(f"Stderr: {stderr_decoded}")
-
-
-# --- 通貨ごとの分析実行関数 (Gitプッシュの呼び出しを追加) ---
 
 def run_analysis_for_coin(coin: str):
     """単一の通貨に対して分析から通知までの全プロセスを実行する。"""
