@@ -292,7 +292,7 @@ def git_push_image(image_path: str, coin: str):
     subprocess.run(["git", "config", "--global", "user.email", "bot@render.com"])
 
     # トークンを使ってリモートURLを定義
-    repo_url = f"https://{token}@github.com/yamauchiz/Noice_ActiveOI.git"
+    repo_url = f"https://{token}@github.com/yamahei21python/Noice_ActiveOI.git"
 
     try:
         # 既存のoriginを削除し、新しく追加する
