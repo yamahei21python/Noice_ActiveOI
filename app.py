@@ -6,45 +6,35 @@ from PIL import Image
 
 # --- ページ設定 ---
 st.set_page_config(page_title="OI Analysis Dashboard", layout="wide")
+st.title("📈 Multi-Coin OI Analysis Dashboard")
 
 # --- 設定 ---
-TARGET_COINS = ["BTC", "ETH", "SOL"]
+# 選択肢のリスト。最初の要素は「一覧表示」用
+VIEW_OPTIONS = ["一覧表示", "BTC", "ETH", "SOL"]
 DATA_DIR = "data"
 
-# --- Session Stateの初期化 ---
-# 拡大表示するコインを記憶する場所を準備
-if "maximized_coin" not in st.session_state:
-    st.session_state.maximized_coin = None
+# --- UI: 表示モードを選択するセレクトボックス ---
+# 横に配置するためにst.columnsを使用
+c1, c2 = st.columns([1, 3])
+with c1:
+    selected_view = st.selectbox(
+        "表示モードを選択してください",
+        VIEW_OPTIONS,
+        label_visibility="collapsed" # ラベルを非表示にしてスッキリさせる
+    )
 
-# --- 表示ロジックの分岐 ---
-
-# 1. 拡大表示モードの場合
-if st.session_state.maximized_coin:
-    coin = st.session_state.maximized_coin
-    st.header(f"{coin} Analysis - 拡大図")
-
-    # 「一覧に戻る」ボタン
-    if st.button("⬅️ 一覧に戻る"):
-        st.session_state.maximized_coin = None
-        st.rerun()
-
-    # 画像の表示
-    figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
-    if os.path.exists(figure_path):
-        image = Image.open(figure_path)
-        st.image(image, use_container_width=True)
-    else:
-        st.error(f"{coin}の画像ファイルが見つかりません。")
-
-# 2. 通常の一覧表示モードの場合
-else:
-    st.title("📈 Multi-Coin OI Analysis Dashboard")
-
+with c2:
     if st.button('🔄 Refresh All Charts'):
         st.rerun()
 
-    cols = st.columns(len(TARGET_COINS))
-    for i, coin in enumerate(TARGET_COINS):
+st.divider() # 区切り線
+
+# --- 表示ロジックの分岐 ---
+
+# 1. 「一覧表示」が選択された場合
+if selected_view == "一覧表示":
+    cols = st.columns(len(VIEW_OPTIONS) - 1) # "一覧表示"を除く通貨数でカラムを作成
+    for i, coin in enumerate(VIEW_OPTIONS[1:]): # "一覧表示"を除く通貨リストでループ
         with cols[i]:
             st.subheader(f"{coin} Analysis")
             figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
@@ -52,12 +42,19 @@ else:
             if os.path.exists(figure_path):
                 image = Image.open(figure_path)
                 st.image(image, caption=f"Latest {coin} OI Analysis", use_container_width=True)
-                
-                # このボタンが押されると、session_stateにコイン名がセットされ、再実行される
-                if st.button(f"🔍 {coin}を拡大表示", key=f"zoom_{coin}"):
-                    st.session_state.maximized_coin = coin
-                    st.rerun()
             else:
                 st.warning(f"{coin}のグラフファイルが見つかりません。")
     
     st.info("このダッシュボードは、バックグラウンドで実行されている分析スクリプトの結果を表示します。「Refresh」ボタンでいつでも最新のグラフを読み込めます。")
+
+# 2. 特定の通貨が選択された場合
+else:
+    coin = selected_view
+    st.header(f"{coin} Analysis - 詳細表示")
+
+    figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
+    if os.path.exists(figure_path):
+        image = Image.open(figure_path)
+        st.image(image, use_container_width=True)
+    else:
+        st.error(f"{coin}の画像ファイルが見つかりません。")
