@@ -1,9 +1,6 @@
 name: Run OI Analysis Script
 
 on:
-  schedule:
-    # 毎時 2, 7, 12, 17, ... 分に実行
-    - cron: '2-59/5 * * * *'
   # 手動実行も可能にする
   workflow_dispatch:
 
