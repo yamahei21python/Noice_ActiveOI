@@ -9,32 +9,31 @@ st.set_page_config(page_title="OI Analysis Dashboard", layout="wide")
 st.title("📈 Multi-Coin OI Analysis Dashboard")
 
 # --- 設定 ---
-# 選択肢のリスト。最初の要素は「一覧表示」用
+# 選択肢のリスト。このリスト以外の入力はできません。
 VIEW_OPTIONS = ["一覧表示", "BTC", "ETH", "SOL"]
 DATA_DIR = "data"
 
 # --- UI: 表示モードを選択するセレクトボックス ---
-# 横に配置するためにst.columnsを使用
 c1, c2 = st.columns([1, 3])
 with c1:
     selected_view = st.selectbox(
         "表示モードを選択してください",
         VIEW_OPTIONS,
-        label_visibility="collapsed" # ラベルを非表示にしてスッキリさせる
+        label_visibility="collapsed"
     )
 
 with c2:
     if st.button('🔄 Refresh All Charts'):
         st.rerun()
 
-st.divider() # 区切り線
+st.divider()
 
 # --- 表示ロジックの分岐 ---
 
 # 1. 「一覧表示」が選択された場合
 if selected_view == "一覧表示":
-    cols = st.columns(len(VIEW_OPTIONS) - 1) # "一覧表示"を除く通貨数でカラムを作成
-    for i, coin in enumerate(VIEW_OPTIONS[1:]): # "一覧表示"を除く通貨リストでループ
+    cols = st.columns(len(VIEW_OPTIONS) - 1)
+    for i, coin in enumerate(VIEW_OPTIONS[1:]):
         with cols[i]:
             st.subheader(f"{coin} Analysis")
             figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
