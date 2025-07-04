@@ -19,7 +19,7 @@ with c1:
     selected_view = st.selectbox(
         "表示モードを選択してください",
         VIEW_OPTIONS,
-        #label_visibility="collapsed"
+        label_visibility="collapsed"
     )
 
 with c2:
