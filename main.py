@@ -254,7 +254,7 @@ def run_analysis_for_coin(coin: str):
     
     latest = all_data.iloc[-1]
     now_merge_std = latest.get('Merge_STD')
-    if now_merge_std is not None and (now_merge_std < -2.5 or now_merge_std > 5.0):
+    if now_merge_std is not None and (now_merge_std < -3.5 or now_merge_std > 5.0):
         message = (f"**{coin}** Alert ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
                    f"**Merge_STD: {now_merge_std:.2f}**\nPrice: {latest['Bybit_Price_Close']:,.2f}")
         send_discord_message(message, figure_path)
