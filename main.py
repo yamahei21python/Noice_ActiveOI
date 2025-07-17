@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Coinalyze APIからデータを取得しグラフを生成後、dataフォルダを一旦削除し、
-新しいグラフ画像のみをGitHubにプッシュする統合スクリプト。
+新しいグラフ画像のみをGitHubにプッシュし、生成された全画像をDiscordに投稿する統合スクリプト。
 """
 
 import requests
@@ -12,13 +12,16 @@ import os
 import matplotlib.pyplot as plt
 from functools import reduce
 import subprocess
-import shutil # ★★★フォルダ削除のために追加
+import shutil
 
 # --- グローバル設定項目 ---
 API_KEY = os.environ.get("API_KEY")
-DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
-DISCORD_CHANNEL_ID = os.environ.get("DISCORD_CHANNEL_ID")
-GITHUB_PAT = os.environ.get("GITHUB_PAT") # Gitのトークンも先に取得
+DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN") # 既存のアラート通知用
+DISCORD_CHANNEL_ID = os.environ.get("DISCORD_CHANNEL_ID") # 既存のアラート通知用
+GITHUB_PAT = os.environ.get("GITHUB_PAT")
+
+# ★★★ ユーザー指定のWebhook URLを追加 ★★★
+DISCORD_WEBHOOK_URL = "https://discordapp.com/api/webhooks/1395228757585035374/p4UYCIgmELzTG3-6MX6UTc0ihlf6isXi-_8FIZfTjqzuVbU415JMZGWvEP32e81lXlJA"
 
 TARGET_COINS = ["BTC", "ETH", "SOL"]
 
@@ -27,8 +30,6 @@ PRICE_API_URL = "https://api.coinalyze.net/v1/ohlcv-history"
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
-# (関数の定義は長いため、変更がない部分は省略しています。下のコードをそのままお使いください)
-# ... get_exchange_config から send_discord_message までの関数定義は変更ありません ...
 # --- 動的設定生成関数 ---
 def get_exchange_config(coin: str) -> dict:
     """通貨シンボルに基づいて取引所の設定を動的に生成する。"""
@@ -136,7 +137,9 @@ def calculate_price_std(df: pd.DataFrame) -> pd.DataFrame:
 # --- グラフ描画 & Discord通知関数 ---
 def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: list):
     df_plot = df.dropna(subset=['Merge_STD', 'Bybit_Price_Close']).reset_index(drop=True)
-    if df_plot.empty: return
+    if df_plot.empty:
+        print(f"[{coin}] グラフ描画用のデータがありません。スキップします。")
+        return
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 8), sharex=True)
     latest_price = df_plot['Bybit_Price_Close'].iloc[-1]
     latest_datetime = df_plot['Datetime'].iloc[-1]
@@ -160,7 +163,28 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: lis
     plt.tight_layout(rect=[0, 0, 1, 0.96]); plt.savefig(save_path); plt.close()
     print(f"グラフを '{save_path}' に保存しました。")
 
+# ★★★ Webhookで画像を投稿する新しい関数を追加 ★★★
+def send_image_via_webhook(image_path: str, coin: str):
+    """指定されたDiscord Webhook URLに画像を投稿する"""
+    if not DISCORD_WEBHOOK_URL:
+        print("Webhook URLが設定されていません。")
+        return
+    
+    try:
+        with open(image_path, "rb") as f:
+            # Webhookに送信するデータを作成
+            files = {'file1': (os.path.basename(image_path), f, 'image/png')}
+            payload = {"content": f"📈 **{coin}** 分析グラフ"}
+            
+            response = requests.post(DISCORD_WEBHOOK_URL, data=payload, files=files)
+            response.raise_for_status() # エラーがあれば例外を発生させる
+            print(f"Webhook経由で {coin} の画像をDiscordに投稿しました。")
+    except Exception as e:
+        print(f"Webhook経由でのDiscordへの投稿に失敗しました: {e}")
+
+# (既存のアラート通知用関数は変更なし)
 def send_discord_message(message: str, image_path: str):
+    """Bot Tokenを使用してアラートを通知する"""
     if not DISCORD_BOT_TOKEN or not DISCORD_CHANNEL_ID: return
     url = f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages"
     headers = {"Authorization": f"Bot {DISCORD_BOT_TOKEN}"}
@@ -169,11 +193,11 @@ def send_discord_message(message: str, image_path: str):
             files = {"file": (os.path.basename(image_path), f, "image/png")}
             response = requests.post(url, headers=headers, data={"content": message}, files=files)
             response.raise_for_status()
-            print("Discordへの通知が正常に送信されました。")
+            print("Discordへのアラート通知が正常に送信されました。")
     except Exception as e:
-        print(f"Discordへの通知送信に失敗: {e}")
+        print(f"Discordへのアラート通知送信に失敗: {e}")
 
-# --- ★★★ Git操作の関数（変更なし） ★★★ ---
+# --- Git操作の関数（変更なし） ---
 def setup_and_push_to_github():
     """dataフォルダ全体をGitHubにプッシュする"""
     if not GITHUB_PAT:
@@ -190,7 +214,6 @@ def setup_and_push_to_github():
         subprocess.run(["git", "remote", "remove", "origin"], stderr=subprocess.DEVNULL)
         subprocess.run(["git", "remote", "add", "origin", repo_url], check=True)
         subprocess.run(["git", "fetch", "origin"], check=True)
-        # detached HEADを避けるため、まずローカルブランチを確実に作る
         subprocess.run(["git", "checkout", "-B", "main"], check=True)
         subprocess.run(["git", "reset", "--hard", "origin/main"], check=True)
         
@@ -225,22 +248,26 @@ def setup_and_push_to_github():
         print(f"Git操作中にエラー: {e}")
         print(f"Stderr: {e.stderr.decode() if e.stderr else 'N/A'}")
 
-# --- ★★★ 分析実行関数（Git操作を削除） ★★★ ---
+# --- 分析実行関数（Webhook呼び出しを追加） ★★★ ---
 def run_analysis_for_coin(coin: str):
-    """単一の通貨に対して分析とグラフ生成のみを行う"""
+    """単一の通貨に対して分析とグラフ生成を行い、結果を投稿する"""
     jst = datetime.timezone(datetime.timedelta(hours=9))
     print(f"--- [{coin}] 処理開始: {datetime.datetime.now(jst).strftime('%Y-%m-%d %H:%M:%S %Z')} ---")
 
     figure_path = os.path.join(DATA_DIR, f'{coin.lower()}_oi_analysis_figure.png')
-    # (ここから下の分析ロジックは元のまま)
+    
     price_symbol = f"{coin}USDT.6"
     exchange_config = get_exchange_config(coin)
     code_to_name_map = {v['code']: k for k, v in exchange_config.items()}
     raw_oi_data = process_oi_api_data(fetch_open_interest_data(exchange_config), code_to_name_map)
     price_data = process_price_data(fetch_price_data(price_symbol))
-    if raw_oi_data.empty or price_data.empty: return
+    if raw_oi_data.empty or price_data.empty:
+        print(f"[{coin}] データ取得に失敗したため処理を中断します。")
+        return
+        
     raw_data_df = pd.merge(raw_oi_data, price_data, on='Datetime', how='left').interpolate()
     if raw_data_df.empty: return
+        
     active_oi_data = calculate_active_oi(raw_data_df, list(exchange_config.keys()))
     standardized_oi_data = aggregate_and_standardize_oi(active_oi_data)
     price_std_data = calculate_price_std(raw_data_df)
@@ -248,21 +275,31 @@ def run_analysis_for_coin(coin: str):
     if 'STD_Active_OI' in all_data.columns and 'Bybit_price_STD' in all_data.columns:
         all_data['Merge_STD'] = all_data['Bybit_price_STD'] + all_data['STD_Active_OI']
     all_data.dropna(inplace=True)
-    if all_data.empty: return
+    
+    if all_data.empty:
+        print(f"[{coin}] 最終データが空のため処理を中断します。")
+        return
     
     plot_figure(all_data, figure_path, coin, list(exchange_config.keys()))
     
+    # ★★★ Webhookで全ての生成画像を投稿する処理を追加 ★★★
+    if os.path.exists(figure_path):
+        send_image_via_webhook(figure_path, coin)
+    
+    # 既存のアラート通知ロジック (変更なし)
     latest = all_data.iloc[-1]
     now_merge_std = latest.get('Merge_STD')
     if now_merge_std is not None and (now_merge_std < -3.5 or now_merge_std > 5.0):
-        message = (f"**{coin}** Alert ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
+        message = (f"**🚨 {coin} Alert** ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
                    f"**Merge_STD: {now_merge_std:.2f}**\nPrice: {latest['Bybit_Price_Close']:,.2f}")
         send_discord_message(message, figure_path)
+        
     print(f"--- [{coin}] 処理完了 ---\n")
 
-# --- ★★★ メイン実行部（全体の流れを制御） ★★★ ---
+# --- メイン実行部（変更なし） ---
 if __name__ == "__main__":
-    if not all([API_KEY, DISCORD_BOT_TOKEN, DISCORD_CHANNEL_ID, GITHUB_PAT]):
-        print("エラー: 必要な環境変数がすべて設定されていません。")
+    # Webhook URLは必須ではないため、チェックから除外
+    if not all([API_KEY, GITHUB_PAT]):
+        print("エラー: 必要な環境変数 (API_KEY, GITHUB_PAT) が設定されていません。")
     else:
         setup_and_push_to_github()
