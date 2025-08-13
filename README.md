@@ -1,7 +1,3 @@
 # Noice_ActiveOI
-
-renderにて定期実行
-https://dashboard.render.com/cron/crn-d1jnnremcj7s73a3fpt0
-
-streamlitにてWEBアプリ化
-https://noiceactiveoi.streamlit.app/
+VPSで運用中
+https://www.notion.so/ConoHa-VPS-24e4eb08923580cfb68edefc1e76e1aa
