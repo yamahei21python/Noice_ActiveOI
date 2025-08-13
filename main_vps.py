@@ -17,8 +17,7 @@ VPSなどでの常時稼働を想定し、メモリ効率とデータ永続性�
 2. 以下の環境変数を設定します。
    - API_KEY: CoinalyzeのAPIキー
    - DISCORD_WEBHOOK_URL: グラフ投稿用のDiscord Webhook URL
-   - (オプション) DISCORD_BOT_TOKEN: アラート通知用Botのトークン
-   - (オプション) DISCORD_CHANNEL_ID: アラート通知先チャンネルID
+   - (オプション) DISCORD_ALERT_WEBHOOK_URL: アラート通知用のDiscord Webhook URL
 """
 
 import datetime
@@ -39,9 +38,8 @@ OI_API_URL = "https://api.coinalyze.net/v1/open-interest-history"
 PRICE_API_URL = "https://api.coinalyze.net/v1/ohlcv-history"
 
 # Discord通知関連
-DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "https://discordapp.com/api/webhooks/1395228757585035374/p4UYCIgmELzTG3-6MX6UTc0ihlf6isXi-_8FIZfTjqzuVbU415JMZGWvEP32e81lXlJA")
-DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
-DISCORD_CHANNEL_ID = os.environ.get("DISCORD_CHANNEL_ID")
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+DISCORD_ALERT_WEBHOOK_URL = os.environ.get("DISCORD_ALERT_WEBHOOK_URL")
 
 # 分析対象
 TARGET_COINS = ["BTC", "ETH", "SOL"]
@@ -283,23 +281,17 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: Lis
     plt.close()
     print(f"グラフを '{save_path}' に保存しました。")
 
-def send_to_discord(message: str, image_path: str, webhook_url: Optional[str] = None, bot_token: Optional[str] = None, channel_id: Optional[str] = None):
-    """Discordにメッセージと画像を投稿します。WebhookかBot Tokenのいずれかを使用します。"""
-    if not (webhook_url or (bot_token and channel_id)):
-        print("Discordへの通知設定が不十分です。")
+def send_to_discord(message: str, image_path: str, webhook_url: Optional[str]):
+    """Discordにメッセージと画像をWebhookで投稿します。"""
+    if not webhook_url:
+        print("Discordへの通知設定（Webhook URL）が不十分です。")
         return
         
     try:
         with open(image_path, "rb") as f:
             files = {'file': (os.path.basename(image_path), f, 'image/png')}
             payload = {"content": message}
-            
-            if webhook_url:
-                response = requests.post(webhook_url, data=payload, files=files)
-            else: # Bot Tokenを使用
-                url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
-                headers = {"Authorization": f"Bot {bot_token}"}
-                response = requests.post(url, headers=headers, data=payload, files=files)
+            response = requests.post(webhook_url, data=payload, files=files)
             
             response.raise_for_status()
             print(f"Discordに「{message}」を投稿しました。")
@@ -386,12 +378,12 @@ def run_analysis_for_coin(coin: str):
     if now_merge_std is not None and (now_merge_std < ALERT_THRESHOLD_LOWER or now_merge_std > ALERT_THRESHOLD_UPPER):
         alert_message = (f"**🚨 {coin} Alert** ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
                          f"**Merge_STD: {now_merge_std:.2f}**\nPrice: {latest['Bybit_Price_Close']:,.2f}")
-        if os.path.exists(figure_path) and DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID:
+        # アラート専用Webhookが設定されていれば通知する
+        if os.path.exists(figure_path) and DISCORD_ALERT_WEBHOOK_URL:
             send_to_discord(
                 message=alert_message,
                 image_path=figure_path,
-                bot_token=DISCORD_BOT_TOKEN,
-                channel_id=DISCORD_CHANNEL_ID
+                webhook_url=DISCORD_ALERT_WEBHOOK_URL
             )
     
     # 6. 処理済みデータをParquet形式で保存
@@ -414,6 +406,8 @@ def main():
         return
     if not DISCORD_WEBHOOK_URL:
         print("警告: 環境変数 `DISCORD_WEBHOOK_URL` が設定されていません。グラフ投稿はスキップされます。")
+    if not DISCORD_ALERT_WEBHOOK_URL:
+        print("警告: 環境変数 `DISCORD_ALERT_WEBHOOK_URL` が設定されていません。アラート通知はスキップされます。")
 
     # データ保存ディレクトリが存在しない場合は作成
     if not os.path.exists(DATA_DIR):
