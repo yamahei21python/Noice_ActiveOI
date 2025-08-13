@@ -19,6 +19,8 @@ VPSなどでの常時稼働を想定し、メモリ効率とデータ永続性�
    - DISCORD_WEBHOOK_URL: グラフ投稿用のDiscord Webhook URL
    - (オプション) DISCORD_ALERT_WEBHOOK_URL: アラート通知用のDiscord Webhook URL
 """
+from dotenv import load_dotenv
+load_dotenv()
 
 import datetime
 import gc
