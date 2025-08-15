@@ -419,17 +419,45 @@ def run_analysis_for_coin(coin: str):
     
     # 5. アラート判定と通知
     latest = all_data.iloc[-1]
+    
+    # 最新の各指標値を取得
     now_merge_std = latest.get('Merge_STD')
-    if now_merge_std is not None and (now_merge_std < ALERT_THRESHOLD_LOWER or now_merge_std > ALERT_THRESHOLD_UPPER):
-        alert_message = (f"**🚨 {coin} Alert** ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
-                         f"**Merge_STD: {now_merge_std:.2f}**\nPrice: {latest['Bybit_Price_Close']:,.2f}")
-        # アラート専用Webhookが設定されていれば通知する
-        if os.path.exists(figure_path) and DISCORD_ALERT_WEBHOOK_URL:
-            send_to_discord(
-                message=alert_message,
-                image_path=figure_path,
-                webhook_url=DISCORD_ALERT_WEBHOOK_URL
+    now_price_std = latest.get('Bybit_price_STD')
+    now_oi_std = latest.get('STD_Active_OI')
+    
+    # アラートメッセージを格納する変数を初期化
+    alert_message = None
+
+    # 必要な指標がすべて存在するかチェック
+    if all(v is not None for v in [now_merge_std, now_price_std, now_oi_std]):
+        
+        # アラート1（下落方向）の条件判定
+        if now_merge_std < -3.5 and now_price_std < -1 and now_oi_std < -1:
+            alert_message = (
+                f"**🚨 [下落アラート] {coin} Alert** ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
+                f"> **Merge_STD: {now_merge_std:.2f}** (条件: < -3.5)\n"
+                f"> **Price_STD: {now_price_std:.2f}** (条件: < -1)\n"
+                f"> **Active_OI_STD: {now_oi_std:.2f}** (条件: < -1)\n"
+                f"Price: {latest['Bybit_Price_Close']:,.2f}"
             )
+
+        # アラート2（上昇方向）の条件判定
+        elif now_merge_std > 5.0 and now_price_std > 1.5 and now_oi_std > 1.5:
+            alert_message = (
+                f"**🚨 [上昇アラート] {coin} Alert** ({latest['Datetime'].strftime('%Y/%m/%d %H:%M')})\n"
+                f"> **Merge_STD: {now_merge_std:.2f}** (条件: > 5.0)\n"
+                f"> **Price_STD: {now_price_std:.2f}** (条件: > 1.5)\n"
+                f"> **Active_OI_STD: {now_oi_std:.2f}** (条件: > 1.5)\n"
+                f"Price: {latest['Bybit_Price_Close']:,.2f}"
+            )
+
+    # アラートメッセージが生成された場合（＝条件に合致した場合）に通知を送信
+    if alert_message and os.path.exists(figure_path) and DISCORD_ALERT_WEBHOOK_URL:
+        send_to_discord(
+            message=alert_message,
+            image_path=figure_path,
+            webhook_url=DISCORD_ALERT_WEBHOOK_URL
+        )
     
     # 6. 処理済みデータをParquet形式で保存
     try:
