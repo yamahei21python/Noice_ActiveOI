@@ -253,11 +253,30 @@ def calculate_price_std(df: pd.DataFrame) -> pd.DataFrame:
 # --- グラフ描画 & Discord通知 ---
 
 def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[str]):
-    """分析結果を3段のグラフとして描画し、ファイルに保存します。"""
+    """
+    分析結果を3段のグラフとして描画し、ファイルに保存します。
+    アラート条件を満たす期間の背景色を変更する機能を追加。
+    """
     df_plot = df.dropna(subset=['Merge_STD', 'Bybit_Price_Close']).reset_index(drop=True)
     if df_plot.empty:
         print(f"[{coin}] グラフ描画用のデータが存在しないため、スキップします。")
         return
+
+    # --- ▼▼▼ 変更箇所1: アラート条件の定義 ▼▼▼ ---
+    # スクリプトのグローバル定数からアラート閾値を使用
+    # 下落アラートの条件を定義
+    down_alert_condition = (
+        (df_plot['Merge_STD'] < ALERT_THRESHOLD_LOWER) &
+        (df_plot['Bybit_price_STD'] < -1) &
+        (df_plot['STD_Active_OI'] < -1)
+    )
+    # 上昇アラートの条件を定義
+    up_alert_condition = (
+        (df_plot['Merge_STD'] > ALERT_THRESHOLD_UPPER) &
+        (df_plot['Bybit_price_STD'] > 1.5) &
+        (df_plot['STD_Active_OI'] > 1.5)
+    )
+    # --- ▲▲▲ 変更箇所1ここまで ▲▲▲ ---
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 8), sharex=True)
     
@@ -272,7 +291,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     fig.suptitle(f"{coin} OI Analysis ({latest_datetime.strftime('%Y-%m-%d %H:%M %Z')})", fontsize=16)
 
     # 1段目: 価格チャート
-    # タイトルに各指標の最新値を表示する
     title_text = (
         f"Bybit Price: {latest_price:,.2f}\n"
         f"Merge_STD: {latest_merge_std:.2f} | "
@@ -299,42 +317,45 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     ax2.yaxis.tick_right()
     ax2.yaxis.set_label_position('right')
 
-    # 3段目: Active OIの内訳 (取引所・通貨タイプごと)
-    # --- ▼▼▼ ここからが変更箇所 ▼▼▼ ---
-    
-    # 色設定のマッピング
-    # USDT: 濃い色, USD: 薄い色
+    # --- ▼▼▼ 変更箇所2: 背景色の塗りつぶし ▼▼▼ ---
+    # ax1とax2のy軸の範囲を取得して、その範囲全体を塗りつぶすように設定
+    y_min1, y_max1 = ax1.get_ylim()
+    y_min2, y_max2 = ax2.get_ylim()
+
+    # 上昇アラートの期間を薄い赤色で塗りつぶす
+    ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=up_alert_condition, 
+                     facecolor='lightcoral', alpha=0.3, interpolate=True)
+    ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=up_alert_condition, 
+                     facecolor='lightcoral', alpha=0.3, interpolate=True)
+
+    # 下落アラートの期間を薄い青色で塗りつぶす
+    ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=down_alert_condition, 
+                     facecolor='lightblue', alpha=0.3, interpolate=True)
+    ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=down_alert_condition, 
+                     facecolor='lightblue', alpha=0.3, interpolate=True)
+    # --- ▲▲▲ 変更箇所2ここまで ▲▲▲ ---
+
+    # 3段目: Active OIの内訳 (ここは変更なし)
     color_map = {
-        'Binance': {'USDT': '#00529B', 'USD': '#65A9E0'},  # 濃い青, 薄い青
-        'Bybit':   {'USDT': '#FF8C00', 'USD': '#FFD699'},  # 濃いオレンジ, 薄いオレンジ
-        'OKX':     {'USDT': '#006400', 'USD': '#66CDAA'},  # 濃い緑, 薄い緑
-        'BitMEX':  {'USDT': '#B22222', 'USD': '#F08080'}   # 濃い赤, 薄い赤
+        'Binance': {'USDT': '#00529B', 'USD': '#65A9E0'},
+        'Bybit':   {'USDT': '#FF8C00', 'USD': '#FFD699'},
+        'OKX':     {'USDT': '#006400', 'USD': '#66CDAA'},
+        'BitMEX':  {'USDT': '#B22222', 'USD': '#F08080'}
     }
-    
-    # 凡例の順番を考慮して、存在するデータを取得
     active_oi_cols_exist = [c for c in [f'{n}_Active_OI_5min' for n in group_names] if c in df_plot.columns]
     
     if active_oi_cols_exist:
-        stack_data = [df_plot[c] / 1_000_000 for c in active_oi_cols_exist] # M USD単位に変換
+        stack_data = [df_plot[c] / 1_000_000 for c in active_oi_cols_exist]
         labels = [c.replace('_Active_OI_5min', '') for c in active_oi_cols_exist]
-        
-        # ラベルに基づいて動的に色のリストを生成
         plot_colors = []
         for label in labels:
             try:
-                # ラベルを 'Binance_USDT' -> ['Binance', 'USDT'] のように分割
                 exchange, currency_type = label.split('_')
-                # マップから色を取得。見つからない場合はデフォルト色（グレー）
                 color = color_map.get(exchange, {}).get(currency_type, '#808080')
                 plot_colors.append(color)
             except ValueError:
-                # ラベルが予期せぬ形式の場合のフォールバック
-                plot_colors.append('#808080') # グレー
-
-        # 生成した色のリストを使ってグラフを描画
+                plot_colors.append('#808080')
         ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=plot_colors)
-    
-    # --- ▲▲▲ ここまでが変更箇所 ▲▲▲ ---
 
     ax3.set_ylabel("Active OI (M USD)")
     ax3.legend(loc='upper left', fontsize='small')
