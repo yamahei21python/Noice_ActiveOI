@@ -324,15 +324,15 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
 
     # 上昇アラートの期間を薄い赤色で塗りつぶす
     ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=up_alert_condition, 
-                     facecolor='lightcoral', alpha=0.3, interpolate=True)
+                     facecolor='lightblue', alpha=0.3, interpolate=True)
     ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=up_alert_condition, 
-                     facecolor='lightcoral', alpha=0.3, interpolate=True)
+                     facecolor='lightblue', alpha=0.3, interpolate=True)
 
     # 下落アラートの期間を薄い青色で塗りつぶす
     ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=down_alert_condition, 
-                     facecolor='lightblue', alpha=0.3, interpolate=True)
+                     facecolor='lightcoral', alpha=0.3, interpolate=True)
     ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=down_alert_condition, 
-                     facecolor='lightblue', alpha=0.3, interpolate=True)
+                     facecolor='lightcoral', alpha=0.3, interpolate=True)
     # --- ▲▲▲ 変更箇所2ここまで ▲▲▲ ---
 
     # 3段目: Active OIの内訳 (ここは変更なし)
