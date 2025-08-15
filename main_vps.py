@@ -84,14 +84,29 @@ def build_symbol_string(exchange_config: Dict[str, Dict[str, any]]) -> str:
     return ','.join(symbols)
 
 def fetch_data_from_api(url: str, params: Dict[str, any], headers: Dict[str, str]) -> Optional[List[Dict]]:
-    """汎用的なAPIデータ取得関数。"""
-    try:
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()  # HTTPエラーがあれば例外を発生
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"APIリクエストに失敗しました: {e}")
-        return None
+    """汎用的なAPIデータ取得関数。失敗時に最大1回リトライする。"""
+    max_retries = 2  # 最大試行回数 (初回 + リトライ1回)
+    retry_delay_seconds = 30
+    
+    for attempt in range(max_retries):
+        try:
+            print(f"APIにリクエストを送信します... (試行 {attempt + 1}/{max_retries})")
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()  # HTTPエラーがあれば例外を発生
+            print("APIリクエスト成功。")
+            return response.json()  # 成功したらJSONを返して関数を終了
+            
+        except requests.exceptions.RequestException as e:
+            print(f"APIリクエストに失敗しました: {e}")
+            # 最後のリトライでなければ、待機してから再試行
+            if attempt < max_retries - 1:
+                print(f"{retry_delay_seconds}秒後にリトライします...")
+                time.sleep(retry_delay_seconds)
+            else:
+                print("最大リトライ回数に達しました。")
+    
+    # すべての試行が失敗した場合
+    return None
 
 def fetch_open_interest_data(exchange_config: Dict) -> List[Dict]:
     """Coinalyzeから建玉(Open Interest)の履歴データを取得します。"""
