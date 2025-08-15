@@ -261,12 +261,26 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 8), sharex=True)
     
-    latest_price = df_plot['Bybit_Price_Close'].iloc[-1]
-    latest_datetime = df_plot['Datetime'].iloc[-1]
+    # 描画するデータの最終行から最新の値を取得
+    latest_row = df_plot.iloc[-1]
+    latest_price = latest_row['Bybit_Price_Close']
+    latest_datetime = latest_row['Datetime']
+    latest_merge_std = latest_row['Merge_STD']
+    latest_price_std = latest_row['Bybit_price_STD']
+    latest_oi_std = latest_row['STD_Active_OI']
+    
     fig.suptitle(f"{coin} OI Analysis ({latest_datetime.strftime('%Y-%m-%d %H:%M %Z')})", fontsize=16)
 
     # 1段目: 価格チャート
-    ax1.set_title(f"Bybit Price: {latest_price:,.2f}", loc='right', color='darkred')
+    # タイトルに各指標の最新値を表示する
+    title_text = (
+        f"Bybit Price: {latest_price:,.2f}\n"
+        f"Merge_STD: {latest_merge_std:.2f} | "
+        f"Price_STD: {latest_price_std:.2f} | "
+        f"Active_OI_STD: {latest_oi_std:.2f}"
+    )
+    ax1.set_title(title_text, loc='right', color='darkred', fontsize=10)
+   
     price_label, price_data = ("Price (k USD)", df_plot['Bybit_Price_Close'] / 1000) if coin in ["BTC", "ETH"] else ("Price (USD)", df_plot['Bybit_Price_Close'])
     ax1.plot(df_plot['Datetime'], price_data, label=price_label, color='orangered')
     ax1.set_ylabel(price_label)
