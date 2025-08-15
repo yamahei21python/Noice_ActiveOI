@@ -271,13 +271,42 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     ax2.yaxis.set_label_position('right')
 
     # 3段目: Active OIの内訳 (取引所・通貨タイプごと)
+    # --- ▼▼▼ ここからが変更箇所 ▼▼▼ ---
+    
+    # 色設定のマッピング
+    # USDT: 濃い色, USD: 薄い色
+    color_map = {
+        'Binance': {'USDT': '#00529B', 'USD': '#65A9E0'},  # 濃い青, 薄い青
+        'Bybit':   {'USDT': '#FF8C00', 'USD': '#FFD699'},  # 濃いオレンジ, 薄いオレンジ
+        'OKX':     {'USDT': '#006400', 'USD': '#66CDAA'},  # 濃い緑, 薄い緑
+        'BitMEX':  {'USDT': '#B22222', 'USD': '#F08080'}   # 濃い赤, 薄い赤
+    }
+    
+    # 凡例の順番を考慮して、存在するデータを取得
     active_oi_cols_exist = [c for c in [f'{n}_Active_OI_5min' for n in group_names] if c in df_plot.columns]
+    
     if active_oi_cols_exist:
         stack_data = [df_plot[c] / 1_000_000 for c in active_oi_cols_exist] # M USD単位に変換
         labels = [c.replace('_Active_OI_5min', '') for c in active_oi_cols_exist]
-        colors = plt.cm.get_cmap('tab20', len(active_oi_cols_exist))
-        ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=[colors(i) for i in range(len(active_oi_cols_exist))])
+        
+        # ラベルに基づいて動的に色のリストを生成
+        plot_colors = []
+        for label in labels:
+            try:
+                # ラベルを 'Binance_USDT' -> ['Binance', 'USDT'] のように分割
+                exchange, currency_type = label.split('_')
+                # マップから色を取得。見つからない場合はデフォルト色（グレー）
+                color = color_map.get(exchange, {}).get(currency_type, '#808080')
+                plot_colors.append(color)
+            except ValueError:
+                # ラベルが予期せぬ形式の場合のフォールバック
+                plot_colors.append('#808080') # グレー
+
+        # 生成した色のリストを使ってグラフを描画
+        ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=plot_colors)
     
+    # --- ▲▲▲ ここまでが変更箇所 ▲▲▲ ---
+
     ax3.set_ylabel("Active OI (M USD)")
     ax3.legend(loc='upper left', fontsize='small')
     ax3.grid(True, which="both")
