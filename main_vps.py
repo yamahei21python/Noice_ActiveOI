@@ -139,7 +139,7 @@ def fetch_price_data(price_symbol: str) -> List[Dict]:
 # --- データ処理 ---
 
 def process_oi_api_data(api_data: List[Dict], code_to_name_map: Dict[str, str]) -> pd.DataFrame:
-    """APIから取得した建玉データを整形し、取引所ごとに集計したDataFrameを返します。"""
+    """APIから取得した建玉データを整形し、取引所と通貨タイプ(USD/USDT)ごとに集計したDataFrameを返します。"""
     if not api_data:
         return pd.DataFrame()
 
@@ -149,10 +149,14 @@ def process_oi_api_data(api_data: List[Dict], code_to_name_map: Dict[str, str]) 
         if not (symbol and history):
             continue
 
-        _, exchange_code = symbol.rsplit('.', 1)
+        contract_name, exchange_code = symbol.rsplit('.', 1)
         exchange_name = code_to_name_map.get(exchange_code)
         if not exchange_name:
             continue
+            
+        # 通貨タイプ（USDかUSDTか）を判別
+        currency_type = 'USDT' if 'USDT' in contract_name else 'USD'
+        group_name = f"{exchange_name}_{currency_type}"
 
         df = pd.DataFrame(history)
         df['Datetime'] = pd.to_datetime(df['t'], unit='s', utc=True).dt.tz_convert('Asia/Tokyo')
@@ -163,16 +167,17 @@ def process_oi_api_data(api_data: List[Dict], code_to_name_map: Dict[str, str]) 
             df[col] = pd.to_numeric(df[col], errors='coerce').astype('float32')
         
         ohlc_df = df[['Open', 'High', 'Low', 'Close']]
-        ohlc_df.columns = pd.MultiIndex.from_product([[exchange_name], ohlc_df.columns])
+        # MultiIndexを 'Binance_USD', 'Close' のように設定
+        ohlc_df.columns = pd.MultiIndex.from_product([[group_name], ohlc_df.columns])
         all_dfs.append(ohlc_df)
 
     if not all_dfs:
         return pd.DataFrame()
 
-    # 複数のDataFrameを結合し、同じ取引所・指標のデータを合計する
+    # 複数のDataFrameを結合し、同じ取引所・通貨タイプ・指標のデータを合計する
     temp_df = pd.concat(all_dfs, axis=1)
     combined_df = temp_df.T.groupby(level=[0, 1]).sum(min_count=1).T
-    combined_df.columns = [f"{ex}_{met}" for ex, met in combined_df.columns]
+    combined_df.columns = [f"{ex_type}_{met}" for ex_type, met in combined_df.columns]
     
     # 欠損値を補間し、全列がNaNの行を削除
     return combined_df.interpolate().reset_index().dropna(how='all', subset=combined_df.columns).reset_index(drop=True)
@@ -188,12 +193,12 @@ def process_price_data(price_history: List[Dict]) -> pd.DataFrame:
     df['c'] = pd.to_numeric(df['c'], errors='coerce').astype('float32')
     return df.rename(columns={'c': 'Bybit_Price_Close'})[['Datetime', 'Bybit_Price_Close']]
 
-def calculate_active_oi(df: pd.DataFrame, exchange_names: List[str]) -> pd.DataFrame:
+def calculate_active_oi(df: pd.DataFrame, group_names: List[str]) -> pd.DataFrame:
     """3日間の安値からの差分を「Active OI」として計算します。"""
     df = df.set_index('Datetime')
     active_oi_df = pd.DataFrame(index=df.index)
     
-    for name in exchange_names:
+    for name in group_names:
         low_col, close_col = f'{name}_Low', f'{name}_Close'
         if low_col in df.columns and close_col in df.columns:
             min_3day = df[low_col].rolling(window=ROLLING_WINDOW_BINS, min_periods=1).min()
@@ -232,7 +237,7 @@ def calculate_price_std(df: pd.DataFrame) -> pd.DataFrame:
 
 # --- グラフ描画 & Discord通知 ---
 
-def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: List[str]):
+def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[str]):
     """分析結果を3段のグラフとして描画し、ファイルに保存します。"""
     df_plot = df.dropna(subset=['Merge_STD', 'Bybit_Price_Close']).reset_index(drop=True)
     if df_plot.empty:
@@ -265,15 +270,16 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, exchange_names: Lis
     ax2.yaxis.tick_right()
     ax2.yaxis.set_label_position('right')
 
-    # 3段目: Active OIの内訳 (USD)
-    active_oi_cols_exist = [c for c in [f'{n}_Active_OI_5min' for n in exchange_names] if c in df_plot.columns]
+    # 3段目: Active OIの内訳 (取引所・通貨タイプごと)
+    active_oi_cols_exist = [c for c in [f'{n}_Active_OI_5min' for n in group_names] if c in df_plot.columns]
     if active_oi_cols_exist:
         stack_data = [df_plot[c] / 1_000_000 for c in active_oi_cols_exist] # M USD単位に変換
-        labels = [c.split('_')[0] for c in active_oi_cols_exist]
-        ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels)
+        labels = [c.replace('_Active_OI_5min', '') for c in active_oi_cols_exist]
+        colors = plt.cm.get_cmap('tab20', len(active_oi_cols_exist))
+        ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=[colors(i) for i in range(len(active_oi_cols_exist))])
     
     ax3.set_ylabel("Active OI (M USD)")
-    ax3.legend(loc='upper left')
+    ax3.legend(loc='upper left', fontsize='small')
     ax3.grid(True, which="both")
     ax3.yaxis.tick_right()
     ax3.yaxis.set_label_position('right')
@@ -336,10 +342,18 @@ def run_analysis_for_coin(coin: str):
         print(f"[{coin}] 初期マージ後のデータが空のため処理を中断します。")
         return
     
-    exchange_names = list(exchange_config.keys())
+    # 取引所と通貨タイプごとのグループリストを生成
+    exchange_currency_groups = []
+    for name, config in exchange_config.items():
+        has_usd = any('USDT' not in contract for contract in config['contracts'])
+        has_usdt = any('USDT' in contract for contract in config['contracts'])
+        if has_usd:
+            exchange_currency_groups.append(f"{name}_USD")
+        if has_usdt:
+            exchange_currency_groups.append(f"{name}_USDT")
     
     # 各指標を計算
-    active_oi_data = calculate_active_oi(base_df, exchange_names)
+    active_oi_data = calculate_active_oi(base_df, exchange_currency_groups)
     standardized_oi_data = aggregate_and_standardize_oi(active_oi_data)
     price_std_data = calculate_price_std(base_df)
     
@@ -366,7 +380,7 @@ def run_analysis_for_coin(coin: str):
         return
     
     # 4. グラフ生成 & Discord投稿
-    plot_figure(all_data, figure_path, coin, exchange_names)
+    plot_figure(all_data, figure_path, coin, exchange_currency_groups)
     if os.path.exists(figure_path) and DISCORD_WEBHOOK_URL:
         send_to_discord(
             message=f"📈 **{coin}** 分析グラフ",
