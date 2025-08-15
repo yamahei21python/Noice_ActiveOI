@@ -316,25 +316,7 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     ax2.grid(True, which="both")
     ax2.yaxis.tick_right()
     ax2.yaxis.set_label_position('right')
-
-    # --- ▼▼▼ 変更箇所2: 背景色の塗りつぶし ▼▼▼ ---
-    # ax1とax2のy軸の範囲を取得して、その範囲全体を塗りつぶすように設定
-    y_min1, y_max1 = ax1.get_ylim()
-    y_min2, y_max2 = ax2.get_ylim()
-
-    # 上昇アラートの期間を薄い赤色で塗りつぶす
-    ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=up_alert_condition, 
-                     facecolor='lightblue', alpha=0.3, interpolate=True)
-    ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=up_alert_condition, 
-                     facecolor='lightblue', alpha=0.3, interpolate=True)
-
-    # 下落アラートの期間を薄い青色で塗りつぶす
-    ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=down_alert_condition, 
-                     facecolor='lightcoral', alpha=0.3, interpolate=True)
-    ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=down_alert_condition, 
-                     facecolor='lightcoral', alpha=0.3, interpolate=True)
-    # --- ▲▲▲ 変更箇所2ここまで ▲▲▲ ---
-
+   
     # 3段目: Active OIの内訳 (ここは変更なし)
     color_map = {
         'Binance': {'USDT': '#00529B', 'USD': '#65A9E0'},
@@ -356,6 +338,26 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
             except ValueError:
                 plot_colors.append('#808080')
         ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=plot_colors)
+   
+    y_min1, y_max1 = ax1.get_ylim()
+    y_min2, y_max2 = ax2.get_ylim()
+    y_min3, y_max3 = ax3.get_ylim()
+   
+    # 上昇アラートの期間を薄い赤色で塗りつぶす
+    ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=up_alert_condition, 
+                     facecolor='lightblue', alpha=0.3, interpolate=True)
+    ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=up_alert_condition, 
+                     facecolor='lightblue', alpha=0.3, interpolate=True)
+    ax3.fill_between(df_plot['Datetime'], y_min3, y_max3, where=up_alert_condition, 
+                     facecolor='lightblue', alpha=0.3, interpolate=True) # 3段目に追加
+   
+    # 下落アラートの期間を薄い青色で塗りつぶす
+    ax1.fill_between(df_plot['Datetime'], y_min1, y_max1, where=down_alert_condition, 
+                     facecolor='lightcoral', alpha=0.3, interpolate=True)
+    ax2.fill_between(df_plot['Datetime'], y_min2, y_max2, where=down_alert_condition, 
+                     facecolor='lightcoral', alpha=0.3, interpolate=True)
+    ax3.fill_between(df_plot['Datetime'], y_min3, y_max3, where=down_alert_condition, 
+                     facecolor='lightcoral', alpha=0.3, interpolate=True) # 3段目に追加
 
     ax3.set_ylabel("Active OI (M USD)")
     ax3.legend(loc='upper left', fontsize='small')
