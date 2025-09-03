@@ -412,13 +412,13 @@ def run_analysis_for_coin(coin: str):
         print(f"[{coin}] アラート発生条件を満たしました。通知を送信します。")
         send_to_discord(alert_message, figure_path, DISCORD_ALERT_WEBHOOK_URL)
         # アラート発生時の詳細情報を、終了通知で使えるように保存
-         coin_status['last_alert_details'] = {
-             "datetime_str": latest['Datetime'].strftime('%Y/%m/%d %H:%M'),
-             "merge_std": float(now_merge_std),
-             "price_std": float(now_price_std),
-             "oi_std": float(now_oi_std),
-             "price": float(latest['Bybit_Price_Close'])
-         }
+        coin_status['last_alert_details'] = {
+            "datetime_str": latest['Datetime'].strftime('%Y/%m/%d %H:%M'),
+            "merge_std": float(now_merge_std),
+            "price_std": float(now_price_std),
+            "oi_std": float(now_oi_std),
+            "price": float(latest['Bybit_Price_Close'])
+        }
 
     # アラート終了通知の判定
     if current_status == "NORMAL" and len(timestamps) >= ALERT_END_COUNT_THRESHOLD:
