@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """
 Coinalyze APIから指定された仮想通貨の市場データを取得・分析し、
@@ -243,6 +242,38 @@ def calculate_price_std(df: pd.DataFrame) -> pd.DataFrame:
     result_df['Bybit_price_STD'] = ((price_df['Bybit_Price_Close'] - mean) / std.replace(0, pd.NA)).astype('float32')
     return result_df.reset_index()
 
+# --- ここから変更 ---
+def calculate_bollinger_bands(df: pd.DataFrame) -> pd.DataFrame:
+    """5分足と15分足のボリンジャーバンドを計算します。"""
+    if 'Bybit_Price_Close' not in df.columns:
+        return df
+
+    # 5分足のボリンジャーバンド計算
+    rolling_5min = df['Bybit_Price_Close'].rolling(window=20)
+    df['bb_sma_5min'] = rolling_5min.mean()
+    df['bb_std_5min'] = rolling_5min.std()
+    df['bb_upper_5min'] = df['bb_sma_5min'] + (df['bb_std_5min'] * 2)
+    df['bb_lower_5min'] = df['bb_sma_5min'] - (df['bb_std_5min'] * 2)
+
+    # 15分足の価格データをリサンプリングして作成
+    df_15min = df.set_index('Datetime')[['Bybit_Price_Close']].resample('15T').last()
+    
+    # 15分足のボリンジャーバンド計算
+    rolling_15min = df_15min['Bybit_Price_Close'].rolling(window=20)
+    df_15min['bb_sma_15min'] = rolling_15min.mean()
+    df_15min['bb_std_15min'] = rolling_15min.std()
+    df_15min['bb_upper_15min'] = df_15min['bb_sma_15min'] + (df_15min['bb_std_15min'] * 2)
+    df_15min['bb_lower_15min'] = df_15min['bb_sma_15min'] - (df_15min['bb_std_15min'] * 2)
+
+    # 元のDataFrameに15分足のデータを結合
+    # how='left'で結合し、前方フィルで欠損値を埋めることで階段状のデータを表現
+    df = pd.merge(df, df_15min[['bb_upper_15min', 'bb_lower_15min']], on='Datetime', how='left')
+    df['bb_upper_15min'].fillna(method='ffill', inplace=True)
+    df['bb_lower_15min'].fillna(method='ffill', inplace=True)
+
+    return df
+# --- ここまで変更 ---
+
 
 # --- グラフ描画 & Discord通知 ---
 
@@ -266,9 +297,27 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
                   f"Price_STD: {latest_row['Bybit_price_STD']:.2f} | "
                   f"Active_OI_STD: {latest_row['STD_Active_OI']:.2f}")
     ax1.set_title(title_text, loc='right', color='darkred', fontsize=10)
-    price_label, price_data = ("Price (k USD)", df_plot['Bybit_Price_Close'] / 1000) if coin in ["BTC", "ETH"] else ("Price (USD)", df_plot['Bybit_Price_Close'])
-    ax1.plot(df_plot['Datetime'], price_data, label=price_label, color='orangered')
+    
+    # --- ここから変更 ---
+    # BTC/ETHの場合は価格を1000で割ってk USD単位で表示
+    price_divisor = 1000 if coin in ["BTC", "ETH"] else 1
+    price_label = "Price (k USD)" if coin in ["BTC", "ETH"] else "Price (USD)"
+    
+    # メインの価格ライン
+    ax1.plot(df_plot['Datetime'], df_plot['Bybit_Price_Close'] / price_divisor, label=price_label, color='orangered', linewidth=1.5)
+    
+    # 5分足ボリンジャーバンド (±2σ)
+    if 'bb_upper_5min' in df_plot.columns and 'bb_lower_5min' in df_plot.columns:
+        ax1.plot(df_plot['Datetime'], df_plot['bb_upper_5min'] / price_divisor, label='5min 2σ', color='gray', linestyle='--', linewidth=0.8)
+        ax1.plot(df_plot['Datetime'], df_plot['bb_lower_5min'] / price_divisor, color='gray', linestyle='--', linewidth=0.8)
+
+    # 15分足ボリンジャーバンド (±2σ)
+    if 'bb_upper_15min' in df_plot.columns and 'bb_lower_15min' in df_plot.columns:
+        ax1.plot(df_plot['Datetime'], df_plot['bb_upper_15min'] / price_divisor, label='15min 2σ', color='dimgray', linestyle=':', linewidth=1.2)
+        ax1.plot(df_plot['Datetime'], df_plot['bb_lower_15min'] / price_divisor, color='dimgray', linestyle=':', linewidth=1.2)
+    
     ax1.set_ylabel(price_label); ax1.legend(loc='upper left'); ax1.grid(True, which="both"); ax1.yaxis.tick_right(); ax1.yaxis.set_label_position('right')
+    # --- ここまで変更 ---
 
     # 2段目: 標準化された指標
     ax2.plot(df_plot['Datetime'], df_plot['Merge_STD'], label='Merge_STD', color='orangered')
@@ -358,6 +407,11 @@ def run_analysis_for_coin(coin: str):
     # メモリ解放
     del raw_oi_data, price_data, base_df, active_oi_data, standardized_oi_data, price_std_data
     gc.collect()
+
+    # --- ここから変更 ---
+    # ボリンジャーバンドを計算
+    all_data = calculate_bollinger_bands(all_data)
+    # --- ここまで変更 ---
 
     # 最終的な分析指標を計算
     if 'STD_Active_OI' in all_data.columns and 'Bybit_price_STD' in all_data.columns:
