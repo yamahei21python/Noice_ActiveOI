@@ -298,7 +298,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
                   f"Active_OI_STD: {latest_row['STD_Active_OI']:.2f}")
     ax1.set_title(title_text, loc='right', color='darkred', fontsize=10)
     
-    # --- ここから変更 ---
     # BTC/ETHの場合は価格を1000で割ってk USD単位で表示
     price_divisor = 1000 if coin in ["BTC", "ETH"] else 1
     price_label = "Price (k USD)" if coin in ["BTC", "ETH"] else "Price (USD)"
@@ -315,9 +314,36 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     if 'bb_upper_15min' in df_plot.columns and 'bb_lower_15min' in df_plot.columns:
         ax1.plot(df_plot['Datetime'], df_plot['bb_upper_15min'] / price_divisor, label='15min 2σ', color='dimgray', linestyle=':', linewidth=1.2)
         ax1.plot(df_plot['Datetime'], df_plot['bb_lower_15min'] / price_divisor, color='dimgray', linestyle=':', linewidth=1.2)
+
+    # --- ここから変更 ---
+    # ボリンジャーバンドのブレイク状態を表示するテキストを生成
+    status_5min = "-"
+    if 'bb_upper_5min' in latest_row and latest_row['Bybit_Price_Close'] > latest_row['bb_upper_5min']:
+        status_5min = "🟢" # 上抜け
+    elif 'bb_lower_5min' in latest_row and latest_row['Bybit_Price_Close'] < latest_row['bb_lower_5min']:
+        status_5min = "🔴" # 下抜け
+        
+    status_15min = "-"
+    if 'bb_upper_15min' in latest_row and latest_row['Bybit_Price_Close'] > latest_row['bb_upper_15min']:
+        status_15min = "🟢" # 上抜け
+    elif 'bb_lower_15min' in latest_row and latest_row['Bybit_Price_Close'] < latest_row['bb_lower_15min']:
+        status_15min = "🔴" # 下抜け
     
-    ax1.set_ylabel(price_label); ax1.legend(loc='upper left'); ax1.grid(True, which="both"); ax1.yaxis.tick_right(); ax1.yaxis.set_label_position('right')
+    # 表示用のテキストを組み立て
+    # f-string内で f"..." と {} を使うために、中括弧を二重にする {{}}
+    bb_status_text = f"BB Break\n5min:  {status_5min}\n15min: {status_15min}"
+    
+    # テキストをグラフの右上に描画
+    ax1.text(0.99, 0.95, bb_status_text,
+             transform=ax1.transAxes, # 座標を軸の相対位置で指定
+             fontsize=12,
+             fontweight='bold',
+             verticalalignment='top',   # テキストボックスの上辺を基準に配置
+             horizontalalignment='right', # テキストボックスの右辺を基準に配置
+             bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.7)) # 見やすいように背景ボックスを追加
     # --- ここまで変更 ---
+
+    ax1.set_ylabel(price_label); ax1.legend(loc='upper left'); ax1.grid(True, which="both"); ax1.yaxis.tick_right(); ax1.yaxis.set_label_position('right')
 
     # 2段目: 標準化された指標
     ax2.plot(df_plot['Datetime'], df_plot['Merge_STD'], label='Merge_STD', color='orangered')
