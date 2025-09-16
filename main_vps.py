@@ -331,16 +331,16 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     
     # 表示用のテキストを組み立て
     # f-string内で f"..." と {} を使うために、中括弧を二重にする {{}}
-    bb_status_text = f"BB Break\n5min:  {status_5min}\n15min: {status_15min}"
+    bb_status_text = f"5min:  {status_5min}\n15min: {status_15min}"
     
     # テキストをグラフの右上に描画
     ax1.text(0.99, 0.95, bb_status_text,
              transform=ax1.transAxes, # 座標を軸の相対位置で指定
-             fontsize=12,
+             fontsize=8,
              fontweight='bold',
              verticalalignment='top',   # テキストボックスの上辺を基準に配置
              horizontalalignment='right', # テキストボックスの右辺を基準に配置
-             bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.7)) # 見やすいように背景ボックスを追加
+             bbox=dict(boxstyle='round,pad=0.4', fc='white', alpha=0.5)) # 見やすいように背景ボックスを追加
     # --- ここまで変更 ---
 
     ax1.set_ylabel(price_label); ax1.legend(loc='upper left'); ax1.grid(True, which="both"); ax1.yaxis.tick_right(); ax1.yaxis.set_label_position('right')
