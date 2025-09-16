@@ -334,20 +334,13 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
         status_15min_symbol, status_15min_color = "▼", "firebrick"
         
     full_text_15min = f"15min: {status_15min_symbol}"
-    
-    # グラフ右上のテキストボックスのベースを描画
-    # y座標を少し調整して、タイトルとの間隔を確保
-    ax1.text(1.0, 0.97, "BB Break",
-             transform=ax1.transAxes, fontsize=8, fontweight='bold',
-             verticalalignment='top', horizontalalignment='right')
              
     # 5分足と15分足の状態を、それぞれ合体させた文字列として色付きで描画
-    ax1.text(1.0, 0.88, full_text_5min,
+    ax1.text(0.95, 0.88, full_text_5min,
              transform=ax1.transAxes, fontsize=8, fontweight='bold',
-             verticalalignment='top', horizontalalignment='right', color=status_5min_color,
-             bbox=dict(boxstyle='round,pad=0.6', fc='white', ec='lightgray', alpha=0.5)) # ボックスはここに集約
+             verticalalignment='top', horizontalalignment='right', color=status_5min_color)
 
-    ax1.text(1.0, 0.76, full_text_15min,
+    ax1.text(0.95, 0.76, full_text_15min,
              transform=ax1.transAxes, fontsize=8, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_15min_color)
     # --- ここまで変更 ---
