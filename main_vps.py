@@ -549,34 +549,37 @@ def run_analysis_for_coin(coin: str):
     save_alert_status(all_statuses)
     
     # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-    # ★★★ 連携用の最新データをJSONファイルに出力する処理 (ここから修正版) ★★★
+    # ★★★ 連携用の最新データをJSONファイルに出力する処理 (ここから最終確定版) ★★★
     # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
     if not all_data.empty:
         # 最新の行を取得
         latest_row = all_data.iloc[-1]
         
-        # 値がNaN（非数）の場合、JSONで扱えるnull（PythonのNone）に変換する
-        # pd.isna() はNaNを正しく判定してくれます
-        price = latest_row.get("Bybit_Price_Close")
-        bb_upper_5min = latest_row.get("bb_upper_5min")
-        bb_lower_5min = latest_row.get("bb_lower_5min")
-        bb_upper_15min = latest_row.get("bb_upper_15min")
-        bb_lower_15min = latest_row.get("bb_lower_15min")
+        # 値を安全にPython標準のfloat型に変換するヘルパー関数
+        def safe_to_native_float(value):
+            # 値がNaNかチェック
+            if pd.isna(value):
+                return None
+            # Python標準のfloat型に変換
+            try:
+                return float(value)
+            # 万が一変換に失敗した場合はNoneを返す
+            except (ValueError, TypeError):
+                return None
 
         # JSONに出力したいデータを辞書形式でまとめる
+        # この際、すべての数値をヘルパー関数を通して変換する
         result_data_for_local = {
             "coin": coin.upper(),
-            # datetimeオブジェクトはISO 8601形式の文字列に変換
             "datetime_iso": latest_row["Datetime"].isoformat(),
-            # NaNだった場合はNone(null)に、そうでなければそのままの値を入れる
-            "price": None if pd.isna(price) else price,
+            "price": safe_to_native_float(latest_row.get("Bybit_Price_Close")),
             "bollinger_bands_5min": {
-                "upper": None if pd.isna(bb_upper_5min) else bb_upper_5min,
-                "lower": None if pd.isna(bb_lower_5min) else bb_lower_5min
+                "upper": safe_to_native_float(latest_row.get("bb_upper_5min")),
+                "lower": safe_to_native_float(latest_row.get("bb_lower_5min"))
             },
             "bollinger_bands_15min": {
-                "upper": None if pd.isna(bb_upper_15min) else bb_upper_15min,
-                "lower": None if pd.isna(bb_lower_15min) else bb_lower_15min
+                "upper": safe_to_native_float(latest_row.get("bb_upper_15min")),
+                "lower": safe_to_native_float(latest_row.get("bb_lower_15min"))
             }
         }
         
@@ -586,13 +589,12 @@ def run_analysis_for_coin(coin: str):
         # JSONファイルに書き出し
         try:
             with open(output_path, 'w', encoding='utf-8') as f:
-                # indent=2 で人間が読みやすいように整形
                 json.dump(result_data_for_local, f, indent=2, ensure_ascii=False)
             print(f"ローカル連携用の最新データを '{output_path}' に保存しました。")
         except Exception as e:
             print(f"JSONファイルへの書き出し中にエラーが発生しました: {e}")
     # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
-    # ★★★ (ここまで修正版) ★★★
+    # ★★★ (ここまで最終確定版) ★★★
     # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
     # 6. 処理済みデータをParquet形式で保存
