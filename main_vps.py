@@ -314,32 +314,43 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
         ax1.plot(df_plot['Datetime'], df_plot['bb_upper_15min'] / price_divisor, label='15min 2σ', color='dimgray', linestyle=':', linewidth=1.2)
         ax1.plot(df_plot['Datetime'], df_plot['bb_lower_15min'] / price_divisor, color='dimgray', linestyle=':', linewidth=1.2)
 
-    # ボリンジャーバンドのブレイク状態を判定
+    # --- ここから変更 ---
+    # ボリンジャーバンドのブレイク状態を判定し、表示用の文字列と色を決定
     # 5分足
-    status_5min_text, status_5min_color = "-", "black"
+    status_5min_symbol, status_5min_color = "-", "black"
     if 'bb_upper_5min' in latest_row and latest_row['Bybit_Price_Close'] > latest_row['bb_upper_5min']:
-        status_5min_text, status_5min_color = "▲", "darkcyan" # 上抜け: 濃い水色系
+        status_5min_symbol, status_5min_color = "▲", "darkcyan"
     elif 'bb_lower_5min' in latest_row and latest_row['Bybit_Price_Close'] < latest_row['bb_lower_5min']:
-        status_5min_text, status_5min_color = "▼", "firebrick" # 下抜け: 濃い赤色系
+        status_5min_symbol, status_5min_color = "▼", "firebrick"
+    
+    # 5minと15minのラベルの長さを揃えるため、5min側に半角スペースを2つ追加
+    full_text_5min = f"5min:  {status_5min_symbol}"
         
     # 15分足
-    status_15min_text, status_15min_color = "-", "black"
+    status_15min_symbol, status_15min_color = "-", "black"
     if 'bb_upper_15min' in latest_row and latest_row['Bybit_Price_Close'] > latest_row['bb_upper_15min']:
-        status_15min_text, status_15min_color = "▲", "darkcyan"
+        status_15min_symbol, status_15min_color = "▲", "darkcyan"
     elif 'bb_lower_15min' in latest_row and latest_row['Bybit_Price_Close'] < latest_row['bb_lower_15min']:
-        status_15min_text, status_15min_color = "▼", "firebrick"
+        status_15min_symbol, status_15min_color = "▼", "firebrick"
+        
+    full_text_15min = f"15min: {status_15min_symbol}"
     
-    # グラフ右上のテキスト描画エリアの背景
-    # 見やすいように少し右にずらす
-    ax1.text(0.995, 0.95, "BB Break\n5min:\n15min:",
-             transform=ax1.transAxes, fontsize=12, fontweight='bold', verticalalignment='top',
-             horizontalalignment='right', bbox=dict(boxstyle='round,pad=0.5', fc='white', alpha=0.7))
+    # グラフ右上のテキストボックスのベースを描画
+    # y座標を少し調整して、タイトルとの間隔を確保
+    ax1.text(1.0, 0.97, "BB Break",
+             transform=ax1.transAxes, fontsize=8, fontweight='bold',
+             verticalalignment='top', horizontalalignment='right')
+             
+    # 5分足と15分足の状態を、それぞれ合体させた文字列として色付きで描画
+    ax1.text(1.0, 0.88, full_text_5min,
+             transform=ax1.transAxes, fontsize=8, fontweight='bold',
+             verticalalignment='top', horizontalalignment='right', color=status_5min_color,
+             bbox=dict(boxstyle='round,pad=0.6', fc='white', ec='lightgray', alpha=0.5)) # ボックスはここに集約
 
-    # 状態を示すテキストを、色を付けて上書き
-    ax1.text(0.985, 0.85, status_5min_text, transform=ax1.transAxes, fontsize=14, fontweight='bold',
-             verticalalignment='top', horizontalalignment='right', color=status_5min_color)
-    ax1.text(0.985, 0.77, status_15min_text, transform=ax1.transAxes, fontsize=14, fontweight='bold',
+    ax1.text(1.0, 0.76, full_text_15min,
+             transform=ax1.transAxes, fontsize=8, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_15min_color)
+    # --- ここまで変更 ---
 
     ax1.set_ylabel(price_label); ax1.legend(loc='upper left'); ax1.grid(True, which="both"); ax1.yaxis.tick_right(); ax1.yaxis.set_label_position('right')
 
@@ -356,7 +367,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     if active_oi_cols_exist:
         stack_data = [df_plot[c] / 1_000_000 for c in active_oi_cols_exist] # 単位をM USDに
         labels = [c.replace('_Active_OI_5min', '') for c in active_oi_cols_exist]
-        # --- ここが修正された箇所です ---
         plot_colors = [color_map.get(l.split('_')[0], {}).get(l.split('_')[1], '#808080') for l in labels]
         ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=plot_colors)
     
