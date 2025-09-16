@@ -398,6 +398,7 @@ def send_to_discord(message: str, image_path: str, webhook_url: Optional[str]):
 
 
 # --- メイン処理 ---
+# --- メイン処理 ---
 def run_analysis_for_coin(coin: str):
     """単一の通貨に対して分析パイプライン全体を実行します。"""
     jst = datetime.timezone(datetime.timedelta(hours=9))
@@ -436,10 +437,8 @@ def run_analysis_for_coin(coin: str):
     del raw_oi_data, price_data, base_df, active_oi_data, standardized_oi_data, price_std_data
     gc.collect()
 
-    # --- ここから変更 ---
     # ボリンジャーバンドを計算
     all_data = calculate_bollinger_bands(all_data)
-    # --- ここまで変更 ---
 
     # 最終的な分析指標を計算
     if 'STD_Active_OI' in all_data.columns and 'Bybit_price_STD' in all_data.columns:
@@ -549,6 +548,44 @@ def run_analysis_for_coin(coin: str):
     all_statuses[coin] = coin_status
     save_alert_status(all_statuses)
     
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+    # ★★★ 連携用の最新データをJSONファイルに出力する処理 (ここから追加) ★★★
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+    if not all_data.empty:
+        # 最新の行を取得
+        latest_row = all_data.iloc[-1]
+        
+        # JSONに出力したいデータを辞書形式でまとめる
+        result_data_for_local = {
+            "coin": coin.upper(),
+            # datetimeオブジェクトはJSONに直接保存できないため、ISO 8601形式の文字列に変換
+            "datetime_iso": latest_row["Datetime"].isoformat(),
+            "price": latest_row.get("Bybit_Price_Close"),
+            "bollinger_bands_5min": {
+                "upper": latest_row.get("bb_upper_5min"),
+                "lower": latest_row.get("bb_lower_5min")
+            },
+            "bollinger_bands_15min": {
+                "upper": latest_row.get("bb_upper_15min"),
+                "lower": latest_row.get("bb_lower_15min")
+            }
+        }
+        
+        # 保存先のファイルパスを定義
+        output_path = os.path.join(DATA_DIR, f'{coin.lower()}_latest_sigma_lines.json')
+        
+        # JSONファイルに書き出し
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                # indent=2 を指定すると、人間が読みやすいように整形されたJSONになる
+                json.dump(result_data_for_local, f, indent=2, ensure_ascii=False)
+            print(f"ローカル連携用の最新データを '{output_path}' に保存しました。")
+        except Exception as e:
+            print(f"JSONファイルへの書き出し中にエラーが発生しました: {e}")
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+    # ★★★ (ここまで追加) ★★★
+    # ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
     # 6. 処理済みデータをParquet形式で保存
     try:
         all_data.to_parquet(data_path, index=False)
