@@ -340,7 +340,7 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
              transform=ax1.transAxes, fontsize=8, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_5min_color)
 
-    ax1.text(0.99, 0.85, full_text_15min,
+    ax1.text(0.99, 0.89, full_text_15min,
              transform=ax1.transAxes, fontsize=8, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_15min_color)
     # --- ここまで変更 ---
