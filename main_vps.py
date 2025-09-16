@@ -276,7 +276,6 @@ def calculate_bollinger_bands(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # --- グラフ描画 & Discord通知 ---
-
 def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[str]):
     """分析結果を3段のグラフとして描画し、ファイルに保存します。"""
     df_plot = df.dropna(subset=['Merge_STD', 'Bybit_Price_Close']).reset_index(drop=True)
@@ -315,7 +314,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
         ax1.plot(df_plot['Datetime'], df_plot['bb_upper_15min'] / price_divisor, label='15min 2σ', color='dimgray', linestyle=':', linewidth=1.2)
         ax1.plot(df_plot['Datetime'], df_plot['bb_lower_15min'] / price_divisor, color='dimgray', linestyle=':', linewidth=1.2)
 
-    # --- ここから変更 ---
     # ボリンジャーバンドのブレイク状態を判定
     # 5分足
     status_5min_text, status_5min_color = "-", "black"
@@ -342,7 +340,6 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
              verticalalignment='top', horizontalalignment='right', color=status_5min_color)
     ax1.text(0.985, 0.77, status_15min_text, transform=ax1.transAxes, fontsize=14, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_15min_color)
-    # --- ここまで変更 ---
 
     ax1.set_ylabel(price_label); ax1.legend(loc='upper left'); ax1.grid(True, which="both"); ax1.yaxis.tick_right(); ax1.yaxis.set_label_position('right')
 
@@ -359,7 +356,8 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     if active_oi_cols_exist:
         stack_data = [df_plot[c] / 1_000_000 for c in active_oi_cols_exist] # 単位をM USDに
         labels = [c.replace('_Active_OI_5min', '') for c in active_oi_cols_exist]
-        plot_colors = [color_map.get(l.split('_[0], {}).get(l.split('_')[1], '#808080') for l in labels]
+        # --- ここが修正された箇所です ---
+        plot_colors = [color_map.get(l.split('_')[0], {}).get(l.split('_')[1], '#808080') for l in labels]
         ax3.stackplot(df_plot['Datetime'], stack_data, labels=labels, colors=plot_colors)
     
     # アラート期間の背景を塗りつぶし
