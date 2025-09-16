@@ -336,11 +336,11 @@ def plot_figure(df: pd.DataFrame, save_path: str, coin: str, group_names: List[s
     full_text_15min = f"15min: {status_15min_symbol}"
              
     # 5分足と15分足の状態を、それぞれ合体させた文字列として色付きで描画
-    ax1.text(0.98, 0.88, full_text_5min,
+    ax1.text(0.99, 0.95, full_text_5min,
              transform=ax1.transAxes, fontsize=8, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_5min_color)
 
-    ax1.text(0.98, 0.76, full_text_15min,
+    ax1.text(0.99, 0.85, full_text_15min,
              transform=ax1.transAxes, fontsize=8, fontweight='bold',
              verticalalignment='top', horizontalalignment='right', color=status_15min_color)
     # --- ここまで変更 ---
